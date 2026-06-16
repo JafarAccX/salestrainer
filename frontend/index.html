@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Sales Trainer Agent</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b101e;
+      --bg-panel: rgba(22, 28, 45, 0.6);
+      --bg-panel-hover: rgba(32, 40, 60, 0.8);
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #f0f4f8;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-glow: rgba(59, 130, 246, 0.4);
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.3);
+      --font-main: 'Inter', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-main);
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      color-scheme: dark;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      z-index: 10;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 8px;
+      font-family: var(--font-main);
+    }
+
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .nav-btn.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 12px var(--accent-glow);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-family: var(--font-main);
+      font-size: 14px;
+      transition: border 0.2s, box-shadow 0.2s;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* Dropdown Options */
+    option {
+      background-color: #0b101e;
+      color: #f0f4f8;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px;
+      position: relative;
+    }
+
+    .view-section {
+      display: none;
+    }
+
+    .view-section.active {
+      display: block;
+      animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h2 {
+      font-size: 28px;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      font-size: 15px;
+    }
+
+    /* Glass Panels */
+    .panel {
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .panel:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Buttons */
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: var(--font-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 12px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn.secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+    }
+
+    .btn.secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: none;
+    }
+
+    .btn.danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn.danger:hover {
+      background: var(--danger);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn.success {
+      background: var(--success);
+      color: #fff;
+      animation: pulse 2s infinite;
+    }
+
+    .btn.success:hover {
+      box-shadow: 0 4px 15px var(--success-glow);
+      animation: none;
+      transform: scale(1.02);
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+      }
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    /* Lists */
+    .list-item {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: slideInLeft 0.4s ease forwards;
+      opacity: 0;
+    }
+
+    @keyframes slideInLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .list-item:hover {
+      transform: translateX(6px) scale(1.01);
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .list-item h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .list-item p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .badge {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Score Grid */
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .score-card {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+
+    .score-card.final {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+      border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    .score-card span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .score-card strong {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(to right, #fff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hiring-decision {
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 700;
+      margin-top: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .hire-yes {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      box-shadow: 0 0 20px var(--success-glow);
+    }
+
+    .hire-no {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+
+    /* Output/Feedback Boxes */
+    .output-box {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 13px;
+      color: #a7f3d0;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+
+    .text-response-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      white-space: pre-wrap;
+      min-height: 60px;
+    }
+
+    /* LiveKit Widget */
+    .lk-widget-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      width: 340px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
+      display: none;
+      border: 1px solid var(--border);
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .lk-widget-header {
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    .lk-widget-body {
+      padding: 24px;
+      text-align: center;
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .close-btn:hover {
+      color: #fff;
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      z-index: 9999;
+      transform: translateX(120%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #toast.show {
+      transform: translateX(0);
+    }
+
+    .toast-error {
+      border-left: 4px solid var(--danger) !important;
+    }
+
+    .toast-success {
+      border-left: 4px solid var(--success) !important;
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toast">
+    <div id="toastMessage">Message</div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">X</div>
+      Sales Trainer Agent
+    </div>
+
+    <div id="stopwatchDisplay" style="text-align:center; font-size: 36px; font-weight: 700; color: var(--accent); margin-bottom: 24px; text-shadow: 0 0 15px var(--accent-glow); display: none;">02:00</div>
+    <p id="activeModuleDisplay" style="text-align:center; font-size: 14px; font-weight: 600; color: var(--success); margin-bottom: 24px; display: none;">Module: Active</p>
+
+    <button class="nav-btn active" data-target="view-learn">Learning Hub</button>
+    <button class="nav-btn" data-target="view-chat">AI Chat Assistant</button>
+    <button class="nav-btn" data-target="view-mock">Voice Mock Call</button>
+    <button class="nav-btn" data-target="view-eval">Evaluation Dashboard</button>
+
+    <div class="sidebar-footer">
+      <div class="field" style="margin-top: 16px;">
+        <label for="apiBase">API Base (leave blank for local)</label>
+        <input id="apiBase" value="" placeholder="/" />
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- LEARNING HUB VIEW -->
+    <section id="view-learn" class="view-section active">
+      <h2>Learning Hub & Curriculum</h2>
+      <p class="subtitle">Generate a comprehensive, structured learning guide based on the documents uploaded to the
+        active module.</p>
+
+      <div class="panel">
+        <button class="btn success" id="generateCurriculumBtn"
+          style="width: 100%; justify-content:center; padding: 14px; font-size:15px;">
+          Generate Curriculum from Documents
+        </button>
+      </div>
+
+      <div class="panel" id="curriculumPanel" style="display: none;">
+        <h3>Module Curriculum</h3>
+        <div id="curriculumOutput" class="output-box" style="margin-top: 16px; font-size: 15px; line-height: 1.6;">
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAT ASSISTANT VIEW -->
+    <section id="view-chat" class="view-section">
+      <h2>Sales Chat Assistant</h2>
+      <p class="subtitle">Test the RAG pipeline. Ask questions the sales rep might ask during a live call.</p>
+
+      <div class="panel">
+        <div class="field">
+          <label>Sales Rep Question</label>
+          <textarea id="chatMessage"
+            placeholder="How do I handle the pricing objection for the Enterprise tier?"></textarea>
+        </div>
+        <button class="btn" id="sendChat">Send Message</button>
+
+        <div class="field" style="margin-top: 24px;">
+          <label>AI Assistant Response</label>
+          <div id="chatResponseArea" class="text-response-box">AI response will appear here based on the selected Active
+            Module.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VOICE MOCK CALL VIEW -->
+    <section id="view-mock" class="view-section">
+      <h2>Voice Mock Call Terminal</h2>
+      <p class="subtitle">Dispatch a LiveKit voice agent to roleplay the prospect.</p>
+
+      <div class="panel">
+        <div class="row">
+          <div class="field" style="flex:1;">
+            <label>Sales Rep ID</label>
+            <input id="salesRepId" value="rep-001" />
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn success" id="startMockCall" style="padding: 14px 24px; font-size: 16px;">
+            Start Voice Mock Call
+          </button>
+          <button class="btn secondary" id="openLiveKit" style="padding: 14px 24px; font-size: 16px;">
+            Launch Playground Tab
+          </button>
+        </div>
+        <div class="field" style="margin-top: 24px;">
+          <label>Session Details</label>
+          <div id="sessionInfo" class="output-box">No session active. Click Start to dispatch the worker.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EVALUATION DASHBOARD VIEW -->
+    <section id="view-eval" class="view-section">
+      <h2>Evaluation & Hiring Dashboard</h2>
+      <p class="subtitle">Grade the sales rep's performance based on their voice and text interactions.</p>
+
+      <div class="row">
+        <!-- Text Test input -->
+        <div class="panel" style="flex: 1; min-width: 300px;">
+          <h3>AI Chat Assistant Transcript</h3>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">This will automatically populate with
+            your conversation from the Chat Assistant tab.</p>
+          <div class="field">
+            <textarea id="chatTranscript" placeholder="Chat history will appear here..." readonly
+              style="min-height: 180px;"></textarea>
+          </div>
+        </div>
+
+        <!-- Evaluation input -->
+        <div class="panel" style="flex: 1; min-width: 300px;">
+          <h3>Submit for Final Evaluation</h3>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Paste the Voice Mock Call transcript
+            below. The AI will evaluate both the Voice and Chat transcripts.</p>
+          <div class="field">
+            <textarea id="mockTranscript" placeholder="Agent: Hello.&#10;Rep: Hi! I'm calling from AcceleratorX..."
+              style="min-height: 120px;"></textarea>
+          </div>
+          <button class="btn success" id="evaluateMock"
+            style="width: 100%; justify-content:center; padding: 14px; font-size:15px;">
+            Generate Final Score & Hiring Decision
+          </button>
+        </div>
+      </div>
+
+      <!-- Results Grid -->
+      <div id="scoreResults" style="display: none;">
+        <h3>Evaluation Results</h3>
+        <div id="hiringBanner" class="hiring-decision"></div>
+        <div class="score-grid" id="scoreGrid" style="margin-top:24px;"></div>
+        <div class="panel">
+          <label
+            style="font-size:12px; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px; display:block;">Feedback</label>
+          <div id="feedbackText" class="text-response-box"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin:0;">Historical Evaluations</h3>
+          <button class="btn secondary" id="refreshHistory">Refresh History</button>
+        </div>
+        <div id="historyList"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Elements
+    const els = {
+      apiBase: document.getElementById('apiBase'),
+      activeModuleDisplay: document.getElementById('activeModuleDisplay'),
+      chatLog: document.getElementById('chatLog'),
+      chatInput: document.getElementById('chatInput'),
+      salesRepId: document.getElementById('salesRepId'),
+      chatTranscript: document.getElementById('chatTranscript'),
+      mockTranscript: document.getElementById('mockTranscript'),
+      historyList: document.getElementById('historyList'),
+      scoreGrid: document.getElementById('scoreGrid'),
+      scoreResults: document.getElementById('scoreResults'),
+      hiringBanner: document.getElementById('hiringBanner'),
+      feedbackText: document.getElementById('feedbackText'),
+      stopwatchDisplay: document.getElementById('stopwatchDisplay'),
+      toast: document.getElementById('toast'),
+      toastMessage: document.getElementById('toastMessage')
+    };
+
+    const state = {
+      activeModuleId: null,
+      timerMinutes: 2,
+      session: null,
+      history: [],
+      timerInterval: null,
+      timeLeft: 0,
+      chatTranscript: ""
+    };
+
+    const scoreLabels = {
+      'product_accuracy': 'Product Accuracy',
+      'discovery': 'Discovery',
+      'objection_handling': 'Objection Handling',
+      'empathy': 'Empathy',
+      'closing_clarity': 'Closing Clarity',
+      'voice_score': 'Voice Score',
+      'text_score': 'Text Score'
+    };
+
+    // Navigation
+    function setupEventListeners() {
+      // Navigation
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+          e.target.classList.add('active');
+          const targetView = document.getElementById(e.target.dataset.target);
+          targetView.classList.add('active');
+
+          if (e.target.dataset.target === 'view-eval') {
+            els.chatTranscript.value = state.chatTranscript || "No chat interaction recorded.";
+          }
+        });
+      });
+    }
+
+    // Toast Notification
+    function showToast(message, isError = false) {
+      els.toast.className = isError ? 'toast-error show' : 'toast-success show';
+      els.toastMessage.textContent = message;
+      setTimeout(() => { els.toast.classList.remove('show'); }, 4000);
+    }
+
+    // API Helper
+    function api(path) {
+      const base = els.apiBase.value.trim().replace(/\/$/, '');
+      return base ? `${base}${path}` : path;
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch(api(path), {
+        headers: { 'accept': 'application/json', ...(options.headers || {}) },
+        ...options,
+      });
+      const text = await response.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; }
+      catch { data = { raw: text }; }
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    async function fetchConfig() {
+      try {
+        const config = await request('/api/config');
+        state.activeModuleId = config.active_module_id;
+        state.activeAgentId = config.active_agent_id;
+        state.timerMinutes = config.timer_minutes || 2;
+        
+        if (state.activeModuleId) {
+          els.activeModuleDisplay.textContent = `Active Module: ${state.activeModuleId.slice(0,8)}`;
+          els.activeModuleDisplay.style.display = 'block';
+        } else {
+          els.activeModuleDisplay.textContent = "No active module set by Admin.";
+          els.activeModuleDisplay.style.color = "var(--danger)";
+          els.activeModuleDisplay.style.display = 'block';
+        }
+
+        // Display Active Agent
+        let agentDisplay = document.getElementById('activeAgentDisplay');
+        if (!agentDisplay) {
+          agentDisplay = document.createElement('p');
+          agentDisplay.id = 'activeAgentDisplay';
+          agentDisplay.style.textAlign = 'center';
+          agentDisplay.style.fontSize = '14px';
+          agentDisplay.style.fontWeight = '600';
+          agentDisplay.style.color = 'var(--accent)';
+          agentDisplay.style.marginBottom = '24px';
+          els.activeModuleDisplay.parentNode.insertBefore(agentDisplay, els.activeModuleDisplay.nextSibling);
+        }
+
+        if (state.activeAgentId) {
+           const agentsRes = await request('/api/agents');
+           const agent = agentsRes.agents?.find(a => a.id === state.activeAgentId);
+           agentDisplay.textContent = `Persona: ${agent ? agent.name : state.activeAgentId.slice(0,8)}`;
+        } else {
+           agentDisplay.textContent = `Persona: Default Prospect`;
+        }
+
+        // Auto-start the timer if configured
+        if (!state.timerInterval && state.timerMinutes > 0 && state.activeModuleId) {
+           startAssessmentTimer();
+        }
+      } catch (err) {
+        showToast("Error loading config: " + err.message, true);
+      }
+    }
+
+    async function loadHistory() {
+      const path = '/api/mock-call/history';
+      const data = await request(path);
+      state.history = data.records || [];
+      
+      // Calculate Grand Final Average for the Rep
+      const repScores = {};
+      state.history.forEach(r => {
+        if (!repScores[r.module_id] || new Date(r.timestamp) > new Date(repScores[r.module_id].timestamp)) {
+          repScores[r.module_id] = r;
+        }
+      });
+      
+      const uniqueScores = Object.values(repScores);
+      if (uniqueScores.length > 0) {
+        const sum = uniqueScores.reduce((acc, curr) => acc + curr.final_score, 0);
+        const avg = (sum / uniqueScores.length).toFixed(1);
+        
+        const avgDisplay = document.getElementById('grandAverageDisplay') || document.createElement('div');
+        avgDisplay.id = 'grandAverageDisplay';
+        avgDisplay.innerHTML = `<h3 style="color:var(--accent); text-align:center; padding:16px; background:rgba(0,0,0,0.2); border-radius:12px;">Grand Final Average (Across All Modules Tested): ${avg}</h3>`;
+        els.historyList.parentNode.insertBefore(avgDisplay, els.historyList);
+      }
+      
+      renderHistory();
+    }
+
+    async function generateCurriculum() {
+      const btn = document.getElementById('generateCurriculumBtn');
+      const panel = document.getElementById('curriculumPanel');
+      const output = document.getElementById('curriculumOutput');
+
+      if (!state.activeModuleId) {
+        showToast('No active module configured by the admin.', true);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Reading Documents & Synthesizing...';
+
+      try {
+        const data = await request(`/api/learn/curriculum?module_id=${encodeURIComponent(state.activeModuleId)}`);
+        output.innerHTML = marked.parse(data.curriculum);
+        panel.style.display = 'block';
+        showToast('Curriculum generated successfully!');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Generate Curriculum from Documents';
+      }
+    }
+
+    async function sendChat() {
+      const msg = document.getElementById('chatMessage').value.trim();
+      const responseArea = document.getElementById('chatResponseArea');
+      const btn = document.getElementById('sendChat');
+      
+      if (!msg) {
+        showToast('Please enter a question.', true);
+        return;
+      }
+      if (!state.activeModuleId) {
+        showToast('No active module configured.', true);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Thinking...';
+      responseArea.textContent = 'Thinking...';
+
+      try {
+        const payload = {
+          message: msg,
+          module_id: state.activeModuleId,
+          sales_rep_id: els.salesRepId ? els.salesRepId.value : 'rep-001'
+        };
+        const data = await request('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        // Use marked if available, otherwise raw text
+        if (typeof marked !== 'undefined') {
+          responseArea.innerHTML = marked.parse(data.response);
+        } else {
+          responseArea.textContent = data.response;
+        }
+
+        // Append to chat transcript
+        state.chatTranscript += `\nRep: ${msg}\nAssistant: ${data.response}\n`;
+        document.getElementById('chatMessage').value = '';
+      } catch (err) {
+        responseArea.textContent = 'Error: ' + err.message;
+        showToast(err.message, true);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Send Message';
+      }
+    }
+
+    async function startMockCall() {
+      const btn = document.getElementById('startMockCall');
+      const infoBox = document.getElementById('sessionInfo');
+      
+      if (!state.activeModuleId) {
+        showToast('No active module configured.', true);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Starting...';
+      infoBox.textContent = 'Dispatching voice agent...';
+
+      try {
+        const payload = {
+          sales_rep_id: els.salesRepId.value || 'rep-001',
+          module_id: state.activeModuleId
+        };
+        const data = await request('/api/mock-call/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        state.session = data;
+        
+        let html = `<strong>Session Started Successfully!</strong><br><br>`;
+        html += `Room: ${data.room_name}<br>`;
+        html += `Agent: ${data.agent_name} (Dispatched: ${data.agent_dispatched})<br><br>`;
+        html += `<a href="${data.connection_link}" target="_blank" style="color:#60a5fa;">Click here to open LiveKit Playground and join the call</a>`;
+        
+        infoBox.innerHTML = html;
+        showToast('Mock call session created!');
+      } catch (err) {
+        infoBox.textContent = 'Error: ' + err.message;
+        showToast(err.message, true);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Start Voice Mock Call';
+      }
+    }
+
+    async function evaluateMock() {
+      const btn = document.getElementById('evaluateMock');
+      const mockTranscript = els.mockTranscript.value.trim();
+      
+      if (!state.activeModuleId) {
+        showToast('No active module configured.', true);
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Evaluating...';
+      els.scoreResults.style.display = 'none';
+
+      try {
+        const payload = {
+          session_id: state.session?.session_id || `manual-${Date.now()}`,
+          voice_transcript: mockTranscript || "No voice transcript provided.",
+          chat_transcript: state.chatTranscript || "No chat transcript provided.",
+          module_id: state.activeModuleId
+        };
+        
+        const data = await request('/api/mock-call/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        // Render Scores
+        els.scoreGrid.innerHTML = '';
+        
+        // Final Score Card
+        const finalCard = document.createElement('div');
+        finalCard.className = 'score-card final';
+        finalCard.innerHTML = `<span>Final Score</span><strong>${data.final_score.toFixed(1)}</strong>`;
+        els.scoreGrid.appendChild(finalCard);
+        
+        // Individual Scores
+        const keys = ['voice_score', 'text_score', 'product_accuracy', 'discovery', 'objection_handling', 'empathy', 'closing_clarity'];
+        keys.forEach(k => {
+          if (data[k] !== undefined && data[k] !== null) {
+            const card = document.createElement('div');
+            card.className = 'score-card';
+            card.innerHTML = `<span>${scoreLabels[k] || k}</span><strong>${data[k].toFixed(1)}</strong>`;
+            els.scoreGrid.appendChild(card);
+          }
+        });
+        
+        // Hiring Banner
+        els.hiringBanner.textContent = `Decision: ${data.hiring_decision}`;
+        els.hiringBanner.className = `hiring-decision ${data.hiring_decision.toLowerCase() === 'hire' ? 'hire-yes' : 'hire-no'}`;
+        
+        // Feedback
+        els.feedbackText.innerHTML = `
+          <strong>Voice Feedback:</strong><br>${data.voice_feedback}<br><br>
+          <strong>Chat Feedback:</strong><br>${data.text_feedback || 'N/A'}
+        `;
+        
+        els.scoreResults.style.display = 'block';
+        showToast('Evaluation complete!');
+        
+        await loadHistory();
+      } catch (err) {
+        showToast('Evaluation failed: ' + err.message, true);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Generate Final Score & Hiring Decision';
+      }
+    }
+
+    function renderHistory() {
+      els.historyList.innerHTML = '';
+      if (!state.history || state.history.length === 0) {
+        els.historyList.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">No evaluations yet.</p>';
+        return;
+      }
+      
+      state.history.forEach(record => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        item.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <h3>Session ${record.session_id.slice(0, 8)}... <span class="badge" style="margin-left:8px;">${Number(record.final_score).toFixed(1)}/10</span></h3>
+              <p>Module: ${record.module_id.slice(0,8)}... | Decision: <strong>${record.hiring_decision}</strong></p>
+            </div>
+            <div style="text-align:right; font-size:12px; color:var(--text-muted);">
+              ${new Date(record.timestamp).toLocaleString()}
+            </div>
+          </div>
+        `;
+        els.historyList.appendChild(item);
+      });
+    }
+
+    // Stopwatch Logic
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = (seconds % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function startAssessmentTimer() {
+      if (state.timerInterval) return; // already running
+
+      const mins = state.timerMinutes;
+      if (!mins || mins <= 0) return;
+
+      state.timeLeft = mins * 60;
+      els.stopwatchDisplay.textContent = formatTime(state.timeLeft);
+      els.stopwatchDisplay.style.display = 'block';
+      els.stopwatchDisplay.style.color = 'var(--accent)';
+
+      showToast(`Assessment started! You have ${mins} minutes.`);
+
+      state.timerInterval = setInterval(() => {
+        state.timeLeft--;
+        els.stopwatchDisplay.textContent = formatTime(state.timeLeft);
+
+        if (state.timeLeft <= 30) els.stopwatchDisplay.style.color = 'var(--danger)';
+
+        if (state.timeLeft <= 0) {
+          clearInterval(state.timerInterval);
+          state.timerInterval = null;
+          els.stopwatchDisplay.style.color = 'var(--accent)';
+
+          showToast('Time is up! Auto-evaluating...', true);
+
+          document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+          document.querySelector('[data-target="view-eval"]').classList.add('active');
+          document.getElementById('view-eval').classList.add('active');
+
+          els.chatTranscript.value = state.chatTranscript || "No chat interaction recorded.";
+
+          handleAction(evaluateMock);
+        }
+      }, 1000);
+    }
+
+    async function handleAction(actionFn) {
+      try { await actionFn(); }
+      catch (err) { showToast(err.message, true); }
+    }
+
+    async function bindEvents() {
+      document.getElementById('loadHistory').addEventListener('click', () => handleAction(loadHistory));
+      document.getElementById('sendChat').addEventListener('click', () => handleAction(sendChat));
+      document.getElementById('startMockCall').addEventListener('click', () => handleAction(startMockCall));
+      document.getElementById('openLiveKit').addEventListener('click', () => {
+        if (!state.session?.connection_link) showToast('Start a mock call first.', true);
+        else window.open(state.session.connection_link, '_blank', 'noopener,noreferrer');
+      });
+      document.getElementById('evaluateMock').addEventListener('click', () => handleAction(evaluateMock));
+      document.getElementById('refreshHistory').addEventListener('click', () => handleAction(loadHistory));
+      document.getElementById('generateCurriculumBtn').addEventListener('click', () => handleAction(generateCurriculum));
+    }
+
+    async function init() {
+      setupEventListeners();
+      await bindEvents();
+      try {
+        await fetchConfig();
+        await loadHistory();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }
+
+    init();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,8 @@
+Acme Revenue Coach is a CRM-integrated sales enablement product for B2B teams.
+It helps sales representatives prepare for calls, answer buyer objections, and practice mock discovery conversations.
+The product connects to the company's CRM, reads approved product documents from the knowledge base, and gives reps grounded answers.
+The main business value is faster onboarding, more consistent messaging, improved objection handling, and better sales manager visibility.
+Common buyer objections include implementation time, trust in AI-generated answers, and price.
+For implementation concerns, the recommended response is that the system starts with a focused pilot, uses existing CRM data, and limits answers to approved company documents.
+For trust concerns, the recommended response is that the assistant answers only from uploaded knowledge-base documents and says when it does not have enough information.
+For price concerns, the recommended response is to connect the cost to reduced ramp time, better rep productivity, and higher win-rate consistency.

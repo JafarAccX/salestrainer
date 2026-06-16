@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sales Trainer - Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b101e;
+      --bg-panel: rgba(22, 28, 45, 0.6);
+      --bg-panel-hover: rgba(32, 40, 60, 0.8);
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #f0f4f8;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-glow: rgba(59, 130, 246, 0.4);
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.3);
+      --font-main: 'Inter', sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--font-main);
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      color-scheme: dark;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      z-index: 10;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 8px;
+      font-family: var(--font-main);
+    }
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+    .nav-btn.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 12px var(--accent-glow);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .field {
+      margin-bottom: 16px;
+    }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-family: var(--font-main);
+      font-size: 14px;
+      transition: border 0.2s, box-shadow 0.2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .field textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    /* Dropdown Options */
+    option {
+      background-color: #0b101e;
+      color: #f0f4f8;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px;
+      position: relative;
+    }
+
+    .view-section {
+      display: none;
+    }
+    .view-section.active {
+      display: block;
+      animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      font-size: 28px;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      font-size: 15px;
+    }
+
+    /* Glass Panels */
+    .panel {
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .panel:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.3);
+    }
+
+    /* Buttons */
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: var(--font-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 12px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .btn.secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+    }
+    .btn.secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: none;
+    }
+    .btn.danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn.danger:hover {
+      background: var(--danger);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+    .btn.success {
+      background: var(--success);
+      color: #fff;
+      animation: pulse 2s infinite;
+    }
+    .btn.success:hover {
+      box-shadow: 0 4px 15px var(--success-glow);
+      animation: none;
+      transform: scale(1.02);
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    /* Lists */
+    .list-item {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: slideInLeft 0.4s ease forwards;
+      opacity: 0;
+    }
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .list-item:hover {
+      transform: translateX(6px) scale(1.01);
+      border-color: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.05);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .list-item h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .list-item p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .badge {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Score Grid */
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .score-card {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .score-card.final {
+      background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(139,92,246,0.1));
+      border-color: rgba(139,92,246,0.3);
+    }
+    .score-card span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .score-card strong {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(to right, #fff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hiring-decision {
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 700;
+      margin-top: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .hire-yes {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      box-shadow: 0 0 20px var(--success-glow);
+    }
+    .hire-no {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+
+    /* Output/Feedback Boxes */
+    .output-box {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 13px;
+      color: #a7f3d0;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+    .text-response-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      white-space: pre-wrap;
+      min-height: 60px;
+    }
+
+    /* LiveKit Widget */
+    .lk-widget-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      width: 340px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+      overflow: hidden;
+      display: none;
+      border: 1px solid var(--border);
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .lk-widget-header {
+      padding: 16px;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+    .lk-widget-body {
+      padding: 24px;
+      text-align: center;
+    }
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .close-btn:hover { color: #fff; }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      z-index: 9999;
+      transform: translateX(120%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #toast.show {
+      transform: translateX(0);
+    }
+    .toast-error { border-left: 4px solid var(--danger) !important; }
+    .toast-success { border-left: 4px solid var(--success) !important; }
+
+    /* Loading Spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+  </style>
+</head>
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toast">
+    <div id="toastMessage">Message</div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">X</div>
+      Sales Trainer Agent
+    </div>
+    
+    <button class="nav-btn active" data-target="view-guide">How To Operate</button>
+    <button class="nav-btn" data-target="view-kb">Knowledge Base</button>
+    <button class="nav-btn" data-target="view-agents">AI Agent Personas</button>
+    <button class="nav-btn" data-target="view-sessions">Session Transcripts</button>
+    <button class="nav-btn" data-target="view-settings">Admin Settings</button>
+
+    <div class="sidebar-footer">
+      <div class="field">
+        <label>Assessment Timer (Minutes)</label>
+        <div style="display:flex; gap:8px;">
+          <input id="timerMins" type="number" value="2" min="1" max="60" style="width:60px; text-align:center;" />
+        </div>
+      </div>
+      <div class="field" style="margin-top: 16px;">
+        <label for="apiBase">API Base (leave blank for local)</label>
+        <input id="apiBase" value="" placeholder="/" />
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- HOW TO OPERATE VIEW -->
+    <section id="view-guide" class="view-section active">
+      <h2>Welcome to Sales Trainer Agent</h2>
+      <p class="subtitle">Follow this step-by-step guide to train your sales reps.</p>
+      
+      <div class="panel" style="font-size: 15px; line-height: 1.6;">
+        <h3 style="margin-top: 0;">Step 1: Setup Knowledge Base (Manager)</h3>
+        <p>Go to the <strong>Knowledge Base</strong> tab. Verify the modules exist and upload PDFs/TXTs to them.</p>
+        
+        <h3 style="margin-top: 24px;">Step 2: Admin Settings</h3>
+        <p>Go to the <strong>Admin Settings</strong> tab. Set the global assessment timer and select which module should be active for sales reps.</p>
+      </div>
+    </section>
+
+    <!-- AI AGENTS VIEW -->
+    <section id="view-agents" class="view-section">
+      <h2>AI Agent Personas</h2>
+      <p class="subtitle">Create distinct AI behavior profiles for your sales reps to train against.</p>
+
+      <div class="row">
+        <div class="panel" style="flex: 1; min-width: 300px;">
+          <h3>Create New Agent</h3>
+          <div class="field">
+            <label>Agent Persona Name</label>
+            <input id="agentName" placeholder="e.g. Skeptical CTO" />
+          </div>
+          <div class="field">
+            <label>System Instructions (Prompt)</label>
+            <textarea id="agentInstructions" placeholder="You are a skeptical CTO. You hate buzzwords and only care about ROI. Always object to price first."></textarea>
+          </div>
+          <button class="btn success" id="createAgentBtn" style="margin-top:8px;">Create Persona</button>
+        </div>
+
+        <div class="panel" style="flex: 1; min-width: 300px;">
+          <h3>Delete Agent</h3>
+          <div class="field">
+            <label>Agent ID</label>
+            <input id="deleteAgentId" placeholder="agent-id" />
+          </div>
+          <button class="btn danger" id="deleteAgentBtn" style="margin-top:8px;">Delete Persona</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Existing Personas</h3>
+        <div id="agentsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; margin-top:16px;"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN SETTINGS VIEW -->
+    <section id="view-settings" class="view-section">
+      <h2>Global Admin Settings</h2>
+      <p class="subtitle">Configure the training parameters for your sales reps.</p>
+
+      <div class="panel" style="max-width: 500px;">
+        <div class="field">
+          <label>Active Training Module</label>
+          <select id="adminActiveModuleSelect">
+            <option value="">Select a module...</option>
+          </select>
+          <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">This forces all sales reps to take their assessment on this specific module.</p>
+        </div>
+        <div class="field" style="margin-top: 24px;">
+          <label>Active AI Persona</label>
+          <select id="adminActiveAgentSelect">
+            <option value="">Default Friendly Prospect</option>
+          </select>
+          <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">This applies the persona prompt to the Chat and Voice bots.</p>
+        </div>
+        <div class="field" style="margin-top: 24px;">
+          <label>Global Assessment Timer (Minutes)</label>
+          <input type="number" id="adminTimerMins" value="2" min="1" max="60">
+        </div>
+        <button class="btn success" id="saveAdminConfig" style="margin-top: 24px;">Save Configuration</button>
+      </div>
+    </section>
+
+    <!-- KNOWLEDGE BASE VIEW -->
+    <section id="view-kb" class="view-section">
+      <h2>Knowledge Base Manager</h2>
+      <p class="subtitle">Upload company data to the 4 core training modules to ground the AI's responses.</p>
+
+      <div class="row">
+        <!-- Upload Doc -->
+        <div class="panel" style="flex: 1; min-width: 300px;">
+          <h3>Upload Documents</h3>
+          <p style="font-size:13px; color:var(--text-muted);">Select a module from the dropdown below and upload a PDF, TXT, or MD file. It will be indexed into the vector DB.</p>
+          
+          <div class="field" style="margin-top: 16px;">
+            <label>Target Module</label>
+            <select id="uploadModuleSelect">
+              <option value="">Select a module...</option>
+            </select>
+          </div>
+
+          <div class="field" style="margin-top: 16px;">
+            <input id="docFile" type="file" accept=".pdf,.txt,.md" style="padding: 8px;" />
+          </div>
+          <div class="row">
+            <button class="btn success" id="uploadDoc">Upload & Index Document</button>
+          </div>
+        </div>
+
+        <!-- Delete Doc -->
+        <div class="panel" style="flex: 1; min-width: 300px;">
+          <h3>Delete a Document</h3>
+          <p style="font-size:13px; color:var(--text-muted);">To delete a document, enter its Document ID below.</p>
+          <div class="field" style="margin-top: 16px;">
+            <label>Target Module</label>
+            <select id="deleteDocModuleSelect">
+              <option value="">Select a module...</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top:16px;">
+            <input id="docId" placeholder="Document ID" style="flex:1;" class="field" />
+            <button class="btn danger" id="removeDoc">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Existing Modules</h3>
+        <div id="modulesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; margin-top:16px;"></div>
+      </div>
+    </section>
+
+    <!-- SESSION TRANSCRIPTS VIEW -->
+    <section id="view-sessions" class="view-section">
+      <h2>Session Transcripts</h2>
+      <p class="subtitle">View and review full voice call transcripts from every mock session. Only visible to admins.</p>
+
+      <div class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="margin:0;">All Voice Sessions</h3>
+          <button class="btn secondary" id="refreshSessions">Refresh</button>
+        </div>
+        <div id="sessionsList"><p style="color:var(--text-muted); font-size:14px;">Loading sessions...</p></div>
+      </div>
+
+      <!-- Transcript Viewer -->
+      <div class="panel" id="transcriptViewer" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="margin:0;">📞 Call Transcript</h3>
+          <button class="btn secondary" id="closeTranscript" style="padding:6px 12px;">✕ Close</button>
+        </div>
+        <div id="transcriptMeta" style="font-size:13px; color:var(--text-muted); margin-bottom:16px;"></div>
+        <div id="transcriptBody" style="
+          background: rgba(0,0,0,0.3);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 20px;
+          max-height: 500px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        "></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Elements
+    const els = {
+      apiBase: document.getElementById('apiBase'),
+      viewKb: document.getElementById('view-kb'),
+      viewSettings: document.getElementById('view-settings'),
+      modulesList: document.getElementById('modulesList'),
+      moduleName: document.getElementById('moduleName'),
+      moduleDescription: document.getElementById('moduleDescription'),
+      docFile: document.getElementById('docFile'),
+      docId: document.getElementById('docId'),
+      toast: document.getElementById('toast'),
+      toastMessage: document.getElementById('toastMessage'),
+      adminActiveModuleSelect: document.getElementById('adminActiveModuleSelect'),
+      uploadModuleSelect: document.getElementById('uploadModuleSelect'),
+      deleteDocModuleSelect: document.getElementById('deleteDocModuleSelect'),
+      adminActiveAgentSelect: document.getElementById('adminActiveAgentSelect'),
+      adminTimerMins: document.getElementById('adminTimerMins'),
+      saveAdminConfig: document.getElementById('saveAdminConfig'),
+      agentName: document.getElementById('agentName'),
+      agentInstructions: document.getElementById('agentInstructions'),
+      agentsList: document.getElementById('agentsList'),
+      deleteAgentId: document.getElementById('deleteAgentId'),
+      sessionsList: document.getElementById('sessionsList'),
+      transcriptViewer: document.getElementById('transcriptViewer'),
+      transcriptMeta: document.getElementById('transcriptMeta'),
+      transcriptBody: document.getElementById('transcriptBody'),
+    };
+
+    const state = {
+      modules: [],
+      agents: []
+    };
+
+    function setupEventListeners() {
+      // Navigation
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+          e.target.classList.add('active');
+          document.getElementById(e.target.dataset.target).classList.add('active');
+        });
+      });
+      
+      els.saveAdminConfig.addEventListener('click', () => handleAction(saveConfig));
+    }
+
+    // Toast Notification
+    function showToast(message, isError = false) {
+      els.toast.className = isError ? 'toast-error show' : 'toast-success show';
+      els.toastMessage.textContent = message;
+      setTimeout(() => { els.toast.classList.remove('show'); }, 4000);
+    }
+
+    // API Helper
+    function api(path) {
+      const base = els.apiBase.value.trim().replace(/\/$/, '');
+      return base ? `${base}${path}` : path;
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch(api(path), {
+        headers: { 'accept': 'application/json', ...(options.headers || {}) },
+        ...options,
+      });
+      const text = await response.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; } 
+      catch { data = { raw: text }; }
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    async function loadConfig() {
+      try {
+        const config = await request('/api/config');
+        els.adminTimerMins.value = config.timer_minutes || 2;
+        els.adminActiveModuleSelect.value = config.active_module_id || '';
+        els.adminActiveAgentSelect.value = config.active_agent_id || '';
+      } catch (e) {
+        console.error("Failed to load config", e);
+      }
+    }
+
+    async function saveConfig() {
+      const activeMod = els.adminActiveModuleSelect.value;
+      const activeAgent = els.adminActiveAgentSelect.value;
+      const mins = parseInt(els.adminTimerMins.value);
+      if (isNaN(mins) || mins < 1) return showToast("Invalid timer minutes", true);
+      
+      const payload = {
+        active_module_id: activeMod || null,
+        active_agent_id: activeAgent || null,
+        timer_minutes: mins
+      };
+      
+      const btn = els.saveAdminConfig;
+      btn.disabled = true;
+      try {
+        await request('/api/config', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        showToast("Admin configuration saved!");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+    }
+
+    // Rendering functions
+    function renderModules() {
+      els.adminActiveModuleSelect.innerHTML = '<option value="">Select a module...</option>';
+      els.uploadModuleSelect.innerHTML = '<option value="">Select a module...</option>';
+      els.deleteDocModuleSelect.innerHTML = '<option value="">Select a module...</option>';
+      
+      els.modulesList.innerHTML = state.modules.length
+        ? state.modules.map(module => {
+            const opt1 = document.createElement('option');
+            opt1.value = module.id;
+            opt1.textContent = module.name;
+            els.adminActiveModuleSelect.appendChild(opt1);
+
+            const opt2 = document.createElement('option');
+            opt2.value = module.id;
+            opt2.textContent = module.name;
+            els.uploadModuleSelect.appendChild(opt2);
+
+            const opt3 = document.createElement('option');
+            opt3.value = module.id;
+            opt3.textContent = module.name;
+            els.deleteDocModuleSelect.appendChild(opt3);
+
+            return `
+            <div class="list-item">
+              <h3>${escapeHtml(module.name)} <span class="badge">${module.id.slice(0, 8)}</span></h3>
+              <p>${escapeHtml(module.description || '')}</p>
+              <p style="margin-top:8px; font-weight:600; color:var(--accent);">${module.documents?.length || 0} documents</p>
+            </div>
+          `;
+          }).join('')
+        : '<div class="muted-box">No modules available. Check backend logs.</div>';
+    }
+
+    function renderAgents() {
+      els.adminActiveAgentSelect.innerHTML = '<option value="">Default Friendly Prospect</option>';
+      els.agentsList.innerHTML = state.agents.length
+        ? state.agents.map(agent => {
+            const opt = document.createElement('option');
+            opt.value = agent.id;
+            opt.textContent = agent.name;
+            els.adminActiveAgentSelect.appendChild(opt);
+
+            return `
+            <div class="list-item">
+              <h3>${escapeHtml(agent.name)} <span class="badge" style="background:var(--accent-glow); color:#fff;">${agent.id.slice(0,8)}</span></h3>
+              <p style="white-space: pre-wrap; font-family: monospace; font-size:12px; margin-top:8px;">${escapeHtml(agent.instructions)}</p>
+            </div>
+          `;
+          }).join('')
+        : '<div class="muted-box">No agents yet. Create one to begin.</div>';
+    }
+
+    // Actions
+    async function loadModules() {
+      const data = await request('/api/kb/modules');
+      state.modules = data.modules || [];
+      renderModules();
+    }
+    
+    async function loadAgents() {
+      const data = await request('/api/agents');
+      state.agents = data.agents || [];
+      renderAgents();
+    }
+
+    async function uploadDocument() {
+      const moduleId = els.uploadModuleSelect.value;
+      if (!moduleId) throw new Error('Select a target module first.');
+      if (!els.docFile.files.length) throw new Error('Choose a file first.');
+      const btn = document.getElementById('uploadDoc');
+      btn.innerHTML = '<span class="spinner"></span> Uploading...';
+      btn.disabled = true;
+      try {
+        const form = new FormData();
+        form.append('file', els.docFile.files[0]);
+        await request(`/api/kb/modules/${moduleId}/documents`, { method: 'POST', body: form });
+        showToast('Document uploaded & indexed successfully!');
+        await loadModules();
+      } finally {
+        btn.innerHTML = 'Upload & Index Document';
+        btn.disabled = false;
+      }
+    }
+
+    async function deleteDocument() {
+      const moduleId = els.deleteDocModuleSelect.value;
+      const documentId = els.docId.value.trim();
+      if (!moduleId) throw new Error('Select a module first.');
+      if (!documentId) throw new Error('Enter a document ID first.');
+      await request(`/api/kb/modules/${moduleId}/documents/${documentId}`, { method: 'DELETE' });
+      showToast('Document deleted');
+      await loadModules();
+    }
+
+    async function handleAction(actionFn) {
+      try { await actionFn(); }
+      catch (err) { showToast(err.message, true); }
+    }
+
+    // ── Session Transcripts ──────────────────────────────────────────────────
+    async function loadSessions() {
+      try {
+        const data = await request('/api/admin/sessions');
+        const sessions = data.sessions || [];
+        if (!sessions.length) {
+          els.sessionsList.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">No sessions yet. Start a mock call from the sales rep dashboard.</p>';
+          return;
+        }
+        els.sessionsList.innerHTML = sessions.map(s => `
+          <div class="list-item" style="opacity:1;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+              <div>
+                <h3 style="margin:0 0 4px;">
+                  ${s.sales_rep_id || 'Unknown Rep'}
+                  <span class="badge" style="margin-left:6px; background:${s.has_transcript ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'}; color:${s.has_transcript ? '#34d399' : 'var(--text-muted)'}">
+                    ${s.has_transcript ? `✓ ${s.transcript_turns} turns` : 'No transcript yet'}
+                  </span>
+                </h3>
+                <p style="margin:0;">Room: <code style="font-size:11px; color:var(--accent);">${s.room_name || '—'}</code></p>
+                <p style="margin:4px 0 0;">Module: ${(s.module_id || 'N/A').slice(0,8)}...</p>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span style="font-size:12px; color:var(--text-muted);">${s.created_at ? new Date(s.created_at).toLocaleString() : ''}</span>
+                ${s.has_transcript ? `<button class="btn" style="padding:6px 14px; font-size:12px;" onclick="viewTranscript('${s.room_name}', '${s.sales_rep_id || ''}', '${s.created_at || ''}')">View Transcript</button>` : '<button class="btn secondary" style="padding:6px 14px; font-size:12px;" disabled>Pending...</button>'}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        els.sessionsList.innerHTML = `<p style="color:var(--danger); font-size:14px;">Error loading sessions: ${e.message}</p>`;
+      }
+    }
+
+    async function viewTranscript(roomName, salesRepId, createdAt) {
+      try {
+        const data = await request(`/api/admin/sessions/${encodeURIComponent(roomName)}/transcript`);
+        els.transcriptMeta.innerHTML = `
+          <strong>Rep:</strong> ${salesRepId || 'Unknown'} &nbsp;|&nbsp;
+          <strong>Room:</strong> <code>${roomName}</code> &nbsp;|&nbsp;
+          <strong>Date:</strong> ${createdAt ? new Date(createdAt).toLocaleString() : '—'} &nbsp;|&nbsp;
+          <strong>Turns:</strong> ${data.transcript.length}
+        `;
+
+        if (!data.transcript.length) {
+          els.transcriptBody.innerHTML = '<p style="color:var(--text-muted);">No transcript turns captured for this session.</p>';
+        } else {
+          els.transcriptBody.innerHTML = data.transcript.map(turn => {
+            const isRep = turn.role === 'Rep';
+            return `
+              <div style="
+                display:flex;
+                flex-direction: ${isRep ? 'row-reverse' : 'row'};
+                align-items:flex-start;
+                gap:10px;
+              ">
+                <div style="
+                  flex-shrink:0;
+                  width:32px; height:32px;
+                  border-radius:50%;
+                  background: ${isRep ? 'var(--accent)' : 'rgba(139,92,246,0.4)'};
+                  display:flex; align-items:center; justify-content:center;
+                  font-size:12px; font-weight:700;
+                ">${isRep ? '👤' : '🤖'}</div>
+                <div style="
+                  max-width:75%;
+                  background:${isRep ? 'rgba(59,130,246,0.15)' : 'rgba(139,92,246,0.12)'};
+                  border:1px solid ${isRep ? 'rgba(59,130,246,0.3)' : 'rgba(139,92,246,0.3)'};
+                  border-radius:12px;
+                  padding:10px 14px;
+                  font-size:13px;
+                  line-height:1.5;
+                ">
+                  <div style="font-size:10px; font-weight:700; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase;">${turn.role}</div>
+                  ${turn.text}
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        els.transcriptViewer.style.display = 'block';
+        els.transcriptViewer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {
+        showToast('Failed to load transcript: ' + e.message, true);
+      }
+    }
+    window.viewTranscript = viewTranscript;
+
+    async function bindEvents() {
+      document.getElementById('uploadDoc').addEventListener('click', () => handleAction(uploadDocument));
+      document.getElementById('removeDoc').addEventListener('click', () => handleAction(deleteDocument));
+      document.getElementById('refreshSessions').addEventListener('click', () => handleAction(loadSessions));
+      document.getElementById('closeTranscript').addEventListener('click', () => {
+        els.transcriptViewer.style.display = 'none';
+      });
+
+      document.getElementById('createAgentBtn').addEventListener('click', async () => {
+        const name = els.agentName.value.trim();
+        const inst = els.agentInstructions.value.trim();
+        if(!name || !inst) return showToast("Name and instructions required", true);
+        await request('/api/agents', {
+          method: 'POST',
+          headers: {'content-type': 'application/json'},
+          body: JSON.stringify({name, instructions: inst})
+        });
+        showToast("Agent Created");
+        els.agentName.value = '';
+        els.agentInstructions.value = '';
+        await loadAgents();
+      });
+
+      document.getElementById('deleteAgentBtn').addEventListener('click', async () => {
+        const id = els.deleteAgentId.value.trim();
+        if(!id) return showToast("Agent ID required", true);
+        await request(`/api/agents/${id}`, {method: 'DELETE'});
+        showToast("Agent Deleted");
+        els.deleteAgentId.value = '';
+        await loadAgents();
+      });
+    }
+
+    async function init() {
+      setupEventListeners();
+      await bindEvents();
+      try {
+        await loadModules();
+        await loadAgents();
+        await loadConfig();
+        await loadSessions();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

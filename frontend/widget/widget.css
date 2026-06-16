@@ -1,0 +1,45 @@
+/* widget.css */
+.lk-widget-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  width: 320px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  overflow: hidden;
+  display: none;
+}
+.lk-widget-header {
+  padding: 12px;
+  background: #0f62fe;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+}
+.lk-widget-body {
+  padding: 16px;
+  text-align: center;
+}
+.visualizer {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.bar {
+  width: 4px;
+  height: 20px;
+  background: #d6deea;
+  border-radius: 2px;
+}
+.bar.active {
+  animation: grow 0.5s infinite alternate;
+  background: #0f62fe;
+}
+@keyframes grow {
+  from { height: 20px; }
+  to { height: 50px; }
+}
