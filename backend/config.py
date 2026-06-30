@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_path, override=True)
 
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 
@@ -25,6 +25,7 @@ class Config:
     DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
     ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
     CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY")
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     VOICE_STT_PROVIDER = os.getenv("VOICE_STT_PROVIDER", "elevenlabs")
     VOICE_TTS_PROVIDER = os.getenv("VOICE_TTS_PROVIDER", "cartesia")
     DISABLE_LOCKS = str(os.getenv("DISABLE_LOCKS", "false")).lower() == "true"

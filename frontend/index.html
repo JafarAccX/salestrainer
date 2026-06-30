@@ -254,7 +254,16 @@
       <div class="card" id="callInfo" style="display:none">
         <h3>📞 Call Session</h3>
         <div id="callDetails" class="output" style="margin-bottom:16px"></div>
-        <button class="btn green" id="joinCall">Join the Call (open playground)</button>
+        <div style="display:flex; gap:12px; margin-bottom:12px;">
+          <button class="btn green" id="joinCall">Join in New Tab</button>
+          <button class="btn ghost" id="embedCall">Embed Call in Page</button>
+        </div>
+        <div id="iframeContainer" style="display:none; margin-top:16px; border-radius:8px; overflow:hidden; border:1px solid #ddd;">
+          <div style="background:#fff3cd; color:#856404; padding:10px 14px; font-size:13px; border-bottom:1px solid #ffc107;">
+            ⚠️ <b>Microphone Tip:</b> When the Playground loads, make sure to <b>click the microphone button</b> to enable your mic. If it doesn't work here, use "Join in New Tab" instead.
+          </div>
+          <iframe id="callIframe" style="width:100%; height:550px; border:none; display:block;" allow="microphone *; camera *; autoplay; clipboard-write; encrypted-media"></iframe>
+        </div>
         <p class="hint" style="margin-top:14px">After the call ends, mark this step complete to unlock evaluation.</p>
       </div>
 
@@ -359,7 +368,8 @@ async function loadCourses(){
       $("courseHint").textContent = "";
       MODULE_ID = null; return;
     }
-    sel.innerHTML = COURSES.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+    sel.innerHTML = `<option value="ALL">🌟 All Courses (Global Training)</option>` + 
+      COURSES.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
     applyCourse(sel.value);
     loadProgress();
   }catch(e){
@@ -371,6 +381,11 @@ async function loadCourses(){
   }
 }
 function applyCourse(courseId){
+  if (courseId === "ALL") {
+    MODULE_ID = "ALL";
+    $("courseHint").innerHTML = `🌟 Ready · Global Training Mode (All Material)`;
+    return;
+  }
   const course = COURSES.find(c => c.id === courseId);
   if(!course){ MODULE_ID = null; return; }
   MODULE_ID = course.kb_module_id || null;
@@ -531,20 +546,39 @@ async function startCall(round){
   busy(btn, true, "Dispatching agent…");
   try{
     const r = await api("/api/mock-call/start", {method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({sales_rep_id: repId(), module_id:MODULE_ID, round})});
+      body: JSON.stringify({sales_rep_id: repId(), module_id:MODULE_ID, round, course_id:courseId()})});
     lastCall = r;
     activity.call_started = true;
     $("callInfo").style.display="block";
     $("callDetails").innerHTML =
       `<b>Round ${round}</b> — ${round===1?"Demo (listen)":"Practice (you sell, scored)"}<br>`+
       `Room: <code>${esc(r.room_name)}</code><br>`+
-      `<span class="muted">${esc(r.frontend_message||"")}</span>`;
+      `<span class="muted">${esc(r.frontend_message||"")}</span><br><br>`+
+      `<div style="background:#d4edda; color:#155724; padding:10px 14px; border-radius:8px; font-size:14px; border:1px solid #c3e6cb;">`+
+      `🎤 <b>IMPORTANT:</b> When the Playground opens, click the <b>microphone button</b> at the bottom to enable your mic. `+
+      `The AI will speak first — wait for it, then talk back. Your voice must be enabled for the AI to hear you.</div>`;
     if(round===2) markDone("practice");
-    toast("Call ready — click Join", "success");
+    // Auto-open in new tab for reliable microphone access
+    if(r.connection_link) {
+      window.open(r.connection_link, "_blank");
+      toast("Call opened in new tab — enable your microphone in the Playground!", "success");
+    } else {
+      toast("Call ready — click Join", "success");
+    }
   }catch(e){ toast(e.message, "error"); }
   busy(btn, false);
 }
 $("joinCall").onclick = ()=>{ if(lastCall?.connection_link) window.open(lastCall.connection_link,"_blank"); else toast("Start a call first"); };
+$("embedCall").onclick = ()=>{
+  if(lastCall?.connection_link) {
+    const iframe = $("callIframe");
+    iframe.src = lastCall.connection_link;
+    $("iframeContainer").style.display = "block";
+    toast("LiveKit Playground embedded. Click the microphone button to enable your mic!", "success");
+  } else {
+    toast("Start a call first");
+  }
+};
 
 // ── Step 4: Evaluation ────────────────────────────────────────────────────────
 
@@ -578,12 +612,16 @@ $("runEval").onclick = async function(){
   busy(this, true, "Scoring…");
   try{
     const r = await api("/api/mock-call/evaluate", {method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({voice_transcript:transcript, module_id:MODULE_ID, round:2, session_id:SID})});
+      body: JSON.stringify({voice_transcript:transcript, module_id:MODULE_ID, round:2, session_id:SID, course_id:courseId(), sales_rep_id:repId()})});
     renderEval(r); markDone("evaluate");
     // Submit the evaluation step → goes to pending admin approval
     try{
       PROGRESS = await api("/api/progress/complete", {method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({sales_rep_id:repId(), course_id:courseId(), step:"evaluation"})});
+        body: JSON.stringify({sales_rep_id:repId(), course_id:courseId(), step:"evaluation",
+          final_score: r.final_score, session_id:SID,
+          dimensions:{product_accuracy:r.product_accuracy, discovery:r.discovery,
+            objection_handling:r.objection_handling, empathy:r.empathy, closing_clarity:r.closing_clarity},
+          hiring_decision:r.hiring_decision})});
       applyGating();
     }catch(e){ console.error(e); }
   }catch(e){ toast("Evaluation failed: " + e.message, "error"); }

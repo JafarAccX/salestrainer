@@ -37,6 +37,11 @@ def _blank_progress(rep_id: str, course_id: str) -> dict[str, Any]:
         "approval_status": "none",
         "approval_note": "",
         "certified": False,
+        # Evaluation result (denormalised at submission time for the admin view)
+        "evaluation_score": None,
+        "evaluation_session_id": None,
+        "evaluation_dimensions": {},
+        "evaluation_decision": "",
         "created_at": _now(),
         "updated_at": _now(),
     }
@@ -70,7 +75,11 @@ class ProgressStore:
             rec = self._recompute_locks(rec)
         return rec
 
-    def complete_step(self, rep_id: str, course_id: str, step: str) -> dict[str, Any] | None:
+    def complete_step(self, rep_id: str, course_id: str, step: str,
+                      final_score: float | None = None,
+                      session_id: str | None = None,
+                      dimensions: dict[str, Any] | None = None,
+                      hiring_decision: str | None = None) -> dict[str, Any] | None:
         if step not in STEP_ORDER:
             return None
         with self._lock:
@@ -91,6 +100,18 @@ class ProgressStore:
 
             rec["steps"][step]["status"] = "completed"
             rec["steps"][step]["completed_at"] = _now()
+
+            # Denormalise evaluation result onto the progress record so the admin
+            # approvals view can display scores without a cross-store lookup.
+            if step == "evaluation":
+                if final_score is not None:
+                    rec["evaluation_score"] = float(final_score)
+                if session_id is not None:
+                    rec["evaluation_session_id"] = session_id
+                if dimensions is not None:
+                    rec["evaluation_dimensions"] = dimensions
+                if hiring_decision is not None:
+                    rec["evaluation_decision"] = hiring_decision
 
             # Submitting the evaluation puts it into pending admin approval.
             if step == "evaluation" and rec["approval_status"] in ("none", "rejected"):

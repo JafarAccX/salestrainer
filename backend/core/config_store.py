@@ -23,7 +23,14 @@ class ConfigStore:
         except Exception:
             return {"active_module_id": None, "active_agent_id": None, "timer_minutes": 2, "agents": []}
 
-    def update_config(self, active_module_id: str | None = None, active_agent_id: str | None = None, timer_minutes: int | None = None) -> dict[str, Any]:
+    def update_config(
+        self,
+        active_module_id: str | None = None,
+        active_agent_id: str | None = None,
+        timer_minutes: int | None = None,
+        all_courses_passing_score: float | None = None,
+        all_courses_agent_id: str | None = None,
+    ) -> dict[str, Any]:
         curr = self.get_config()
         if active_module_id is not None:
             curr["active_module_id"] = active_module_id
@@ -31,6 +38,10 @@ class ConfigStore:
             curr["active_agent_id"] = active_agent_id
         if timer_minutes is not None:
             curr["timer_minutes"] = timer_minutes
+        if all_courses_passing_score is not None:
+            curr["all_courses_passing_score"] = all_courses_passing_score
+        if all_courses_agent_id is not None:
+            curr["all_courses_agent_id"] = all_courses_agent_id
         self._write(curr)
         return curr
 

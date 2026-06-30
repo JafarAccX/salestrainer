@@ -25,8 +25,19 @@ logger = logging.getLogger(__name__)
 
 
 class LiveKitService:
+    def __init__(self) -> None:
+        self._last_dispatched = {
+            "round": 1,
+            "module_id": "ALL",
+            "course_id": None,
+        }
+
+    def get_last_dispatched(self) -> dict:
+        return self._last_dispatched
+
     async def create_mock_call_session(
-        self, sales_rep_id: str, module_id: str | None = None, round_num: int = 2
+        self, sales_rep_id: str, module_id: str | None = None, round_num: int = 2,
+        course_id: str | None = None,
     ) -> dict[str, Any]:
         room_name = f"mock-call-{uuid.uuid4()}"
         participant_identity = sales_rep_id or f"sales-rep-{uuid.uuid4()}"
@@ -34,10 +45,11 @@ class LiveKitService:
         # ── 1. Retrieve RAG knowledge base context ────────────────────────────
         kb_context = ""
         if module_id:
-            kb_context = rag_engine.retrieve_context(
+            kb_context = await rag_engine.retrieve_context(
                 "sales discovery objections product value implementation trust",
                 top_k=8,
                 module_id=module_id,
+                rerank=False,
             )
         if module_id and not kb_context.strip():
             raise ValueError(
@@ -51,24 +63,59 @@ class LiveKitService:
             if module:
                 module_name = module.get("name", "")
 
-        # Resolve the configured admin agent behaviour (if any). The active agent
-        # id is stored in config_store; the rich behaviour config lives in
-        # agent_store. We compile its instructions + LLM settings here so the
-        # worker can apply them directly without DB access.
+        # Resolve the agent behaviour for this call. Resolution order:
+        #   1. The COURSE's configured agent_id (per-course persona).
+        #   2. The global active_agent_id (legacy default).
+        # If neither resolves to a real agent, the voice worker falls back to
+        # the built-in prospect prompt.
         agent_instructions = ""
         agent_llm_settings: dict[str, Any] = {}
         try:
             from core.config_store import config_store
             from core.agent_store import agent_store
+            from core.course_store import course_store
 
-            active_id = config_store.get_config().get("active_agent_id")
-            if active_id:
-                agent_cfg = agent_store.get_agent(active_id)
-                if agent_cfg and round_num == 2 and agent_cfg.get("tier3_round2_enabled", True):
-                    agent_instructions = agent_store.build_instructions(
-                        agent_cfg, kb_context=kb_context, module_name=module_name
-                    )
-                    agent_llm_settings = agent_cfg.get("llm_settings") or {}
+            resolved_agent_id: str | None = None
+            if round_num == 2:
+                if course_id:
+                    course = course_store.get_course(course_id)
+                    if course:
+                        # 1a. Native embedded Course persona
+                        if course.get("custom_agent_instructions") or course.get("custom_objections"):
+                            base_inst = course.get("custom_agent_instructions", "")
+                            objs = course.get("custom_objections") or []
+                            obj_str = "\n".join([f"- {o}" for o in objs])
+                            agent_instructions = (
+                                f"Custom Persona Instructions:\n{base_inst}\n\n"
+                                f"Objections to raise natively:\n{obj_str}\n\n"
+                                "IMPORTANT: Speak naturally, keep replies concise (1-3 sentences), "
+                                "no stage directions. Stay in character as the prospect — never coach the rep."
+                            )
+                            if module_name.strip():
+                                agent_instructions += f"\n\nProduct/Course being evaluated:\n{module_name.strip()}"
+                            if kb_context.strip():
+                                agent_instructions += f"\n\nKnowledge base context:\n{kb_context.strip()}"
+                        
+                        # 1b. Linked Agent Persona
+                        if not agent_instructions and course.get("agent_id"):
+                            resolved_agent_id = course["agent_id"]
+
+                # 2. Global active agent fallback
+                if not agent_instructions and not resolved_agent_id:
+                    # If "All Courses" mode, try the all_courses_agent_id fallback
+                    cfg = config_store.get_config()
+                    if module_id == "ALL" and cfg.get("all_courses_agent_id"):
+                        resolved_agent_id = cfg["all_courses_agent_id"]
+                    elif cfg.get("active_agent_id"):
+                        resolved_agent_id = cfg["active_agent_id"]
+
+                if not agent_instructions and resolved_agent_id:
+                    agent_cfg = agent_store.get_agent(resolved_agent_id)
+                    if agent_cfg and agent_cfg.get("tier3_round2_enabled", True):
+                        agent_instructions = agent_store.build_instructions(
+                            agent_cfg, kb_context=kb_context, module_name=module_name
+                        )
+                        agent_llm_settings = agent_cfg.get("llm_settings") or {}
         except Exception as exc:
             logger.warning("Agent behaviour resolution failed (non-fatal): %s", exc)
 
@@ -76,6 +123,7 @@ class LiveKitService:
         # LiveKit metadata limits). The worker fetches it via HTTP instead.
         job_metadata = json.dumps({
             "round": round_num,
+            "course_id": course_id or "",
             "module_id": module_id or "",
             "module_name": module_name,
             "agent_instructions": agent_instructions,
@@ -127,6 +175,13 @@ class LiveKitService:
             except Exception as exc:
                 logger.error("Error during room/dispatch setup: %s", exc)
 
+        # Store last dispatched session info for fallback query
+        self._last_dispatched = {
+            "round": round_num,
+            "module_id": module_id or "ALL",
+            "course_id": course_id,
+        }
+
         # ── 4. Build the connection link for the frontend ─────────────────────
         # Include url + token as query params so the LiveKit playground
         # auto-connects without the user needing to paste credentials.
@@ -145,6 +200,7 @@ class LiveKitService:
             "session_id": str(uuid.uuid4()),
             "room_name": room_name,
             "participant_identity": participant_identity,
+            "course_id": course_id,
             "module_id": module_id,
             "module_name": module_name,
             "round": round_num,
@@ -180,6 +236,8 @@ class LiveKitService:
             "session_id": session_record["session_id"],
             "room_name": room_name,
             "participant_identity": participant_identity,
+            "course_id": course_id,
+            "module_id": module_id,
             "livekit_url": config.LIVEKIT_URL,
             "participant_token": participant_token,
             "agent_name": config.LIVEKIT_AGENT_NAME,

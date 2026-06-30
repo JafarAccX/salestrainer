@@ -233,36 +233,75 @@ def tier3_eval_system() -> str:
         "prospect. Evaluate their performance STRICTLY against the Knowledge Base — if they claimed "
         "something not in the KB, it is a fabrication and must be penalised."
     )
-
-
-def tier3_eval_prompt(kb_context: str, voice_transcript: str) -> str:
-    return (
-        "EVALUATION DIMENSIONS (each scored 1-10):\n\n"
-        "ProductAccuracy (weight: HIGH)\n"
+def tier3_eval_prompt(kb_context: str, voice_transcript: str, passing_threshold: float = 7.0, course: dict | None = None) -> str:
+    """Prompt for evaluating the Round 2 transcript."""
+    
+    custom_rubric = course.get("custom_rubric", {}) if course else {}
+    materials_context = course.get("course_materials_context", "") if course else ""
+    
+    rubric_product = custom_rubric.get("product_accuracy") or (
         "  10: Every claim matches KB exactly, demonstrates deep product knowledge\n"
         "  7 : Mostly accurate, 1-2 minor omissions or imprecise statements\n"
         "  4 : Mix of correct and fabricated information\n"
-        "  1 : Mostly fabricated or completely off\n\n"
-        "Discovery\n"
+        "  1 : Mostly fabricated or completely off"
+    )
+    rubric_discovery = custom_rubric.get("discovery") or (
         "  10: Asked 3+ insightful questions that uncovered real prospect pain and led the conversation\n"
         "  7 : Asked 1-2 good qualifying questions\n"
         '  4 : Only surface-level or generic questions ("Tell me about your business?")\n'
-        "  1 : No discovery questions at all — jumped straight to pitching\n\n"
-        "ObjectionHandling\n"
+        "  1 : No discovery questions at all — jumped straight to pitching"
+    )
+    rubric_objections = custom_rubric.get("objection_handling") or (
         "  10: Acknowledged → empathy → reframed with KB-grounded proof → moved forward naturally\n"
         "  7 : Addressed objections but lacked empathy or proof\n"
         "  4 : Generic deflection or dismissed the concern\n"
-        "  1 : Ignored the objection or argued with the prospect\n\n"
-        "Empathy & Communication\n"
+        "  1 : Ignored the objection or argued with the prospect"
+    )
+    rubric_empathy = custom_rubric.get("empathy") or (
         "  10: Listened actively, reflected back words, adapted pitch, spoke clearly and conversationally\n"
         "  7 : Generally clear, some scripted moments, some listening\n"
         "  4 : Talked past the customer, over-explained, used jargon\n"
-        "  1 : Robotic, no acknowledgment of prospect's situation\n\n"
-        "ClosingClarity\n"
+        "  1 : Robotic, no acknowledgment of prospect's situation"
+    )
+    rubric_closing = custom_rubric.get("closing_clarity") or (
         "  10: Proposed a specific, concrete next step with a time — made it easy to say yes\n"
         "  7 : Suggested a vague next step\n"
         "  4 : Weak or no close attempted\n"
-        "  1 : Lost control; call ended without any direction\n\n"
+        "  1 : Lost control; call ended without any direction"
+    )
+    
+    materials_section = ""
+    if materials_context:
+        materials_section = f"Course Materials Context:\n{materials_context}\n\n"
+
+    return (
+        "You are evaluating a mock sales call transcript between a Sales Rep (Learner) and a Prospect (AI).\n"
+        f"EVALUATION DIMENSIONS (each scored 1-10):\n"
+        f"(Note: the pass mark for THIS course is {passing_threshold}/10 — "
+        "use it only for your recommendation, the server computes the final decision.)\n\n"
+        "ProductAccuracy (weight: HIGH)\n"
+        f"{rubric_product}\n\n"
+        "Discovery\n"
+        f"{rubric_discovery}\n\n"
+        "ObjectionHandling\n"
+        f"{rubric_objections}\n\n"
+        "Empathy & Communication\n"
+        f"{rubric_empathy}\n\n"
+        "ClosingClarity\n"
+        f"{rubric_closing}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "STRICT EVALUATION RULES (MANDATORY):\n"
+        "1. UNATTEMPTED PHASES / SKILLS = 1.0:\n"
+        "   - If a sales phase or skill (Discovery, Objection Handling, or Closing) was not reached, not attempted, or is missing from the transcript, you MUST assign a score of 1.0 for that dimension. Do NOT give a default middle-ground score (like 3-5).\n"
+        "   - If the rep did not ask at least 2 distinct discovery/qualifying questions to uncover pain, Discovery MUST be scored 1.0 or 2.0 max.\n"
+        "   - If no objections were raised/handled, or the rep did not use KB-backed evidence to address them, ObjectionHandling MUST be scored 1.0.\n"
+        "   - If the rep did not propose a clear, specific next step (with date/time/action) or the call ended before a close was attempted, ClosingClarity MUST be scored 1.0.\n"
+        "\n"
+        "2. LOW ENGAGEMENT / SHORT CALL PENALTY:\n"
+        "   - If the trainee speaks very little (e.g. fewer than 150 words total, or mostly one-word/fragmented answers like 'Yep', 'Yeah', 'Anything', 'subordinate'), the entire mock call is incomplete and shows lack of sales readiness.\n"
+        "   - In this case, you MUST heavily penalize all scores. ProductAccuracy and Empathy/Communication MUST NOT exceed 4.0, and the overall VoiceScore must be capped at 3.0 or lower.\n"
+        "   - The Strengths section should note the call was too short to show competence, and the PriorityFocus must instruct them to speak in full sentences, lead the conversation, and ask discovery questions.\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "ANTI-HALLUCINATION CHECK (required before scoring):\n"
         "List every factual product claim the trainee made. Mark each as [VERIFIED against KB] or "
@@ -273,6 +312,7 @@ def tier3_eval_prompt(kb_context: str, voice_transcript: str) -> str:
         "- Acknowledge what they did well before pointing out gaps.\n"
         "- Reference specific moments from the transcript.\n"
         "- End with 1 clear priority improvement for their next call.\n\n"
+        f"{materials_section}"
         f"Knowledge Base Context (ground truth):\n{kb_context}\n\n"
         f"Voice Call Transcript (trainee as counsellor, AI as prospect):\n{voice_transcript}\n\n"
         "OUTPUT FORMAT (exact):\n"
@@ -286,5 +326,5 @@ def tier3_eval_prompt(kb_context: str, voice_transcript: str) -> str:
         "Strengths: [2-3 specific things they did well, with transcript references]\n"
         "ImprovementAreas: [2-3 specific gaps with exact alternative phrasing]\n"
         "PriorityFocus: [The single most important thing to work on next call]\n"
-        "HiringDecision: [Hire / Not Ready Yet — threshold: VoiceScore >= 7.0]"
+        f"HiringDecision: [Hire / Not Ready Yet — threshold: VoiceScore >= {passing_threshold}]"
     )

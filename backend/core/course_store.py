@@ -70,6 +70,10 @@ class CourseStore:
         agent_id: str | None = None,
         target_audience: str = "",
         passing_score: float = 7.0,
+        custom_rubric: dict | None = None,
+        course_materials_context: str = "",
+        custom_agent_instructions: str = "",
+        custom_objections: list[str] | None = None,
     ) -> dict[str, Any]:
         courses = self._read()
         course = {
@@ -81,6 +85,10 @@ class CourseStore:
             "agent_id": agent_id,
             "target_audience": target_audience,
             "passing_score": passing_score,
+            "custom_rubric": custom_rubric or {},
+            "course_materials_context": course_materials_context,
+            "custom_agent_instructions": custom_agent_instructions,
+            "custom_objections": custom_objections or [],
             "tier_sequence": ["tier1", "tier2", "tier3"],
             "tier_config": default_tier_config(),
             "approval_required": True,
@@ -92,26 +100,50 @@ class CourseStore:
         self._write(courses)
         return course
 
-    def update_course(self, course_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
+    def update_course(
+        self,
+        course_id: str,
+        name: str | None = None,
+        description: str | None = None,
+        kb_module_id: str | None = None,
+        agent_id: str | None = None,
+        target_audience: str | None = None,
+        passing_score: float | None = None,
+        custom_rubric: dict | None = None,
+        course_materials_context: str | None = None,
+        custom_agent_instructions: str | None = None,
+        custom_objections: list[str] | None = None,
+        status: str | None = None,
+        tier_sequence: list[str] | None = None,
+        tier_config: dict | None = None,
+        approval_required: bool | None = None,
+        assigned_users: list[str] | None = None,
+    ) -> dict[str, Any] | None:
         courses = self._read()
         for course in courses:
             if course["id"] == course_id:
-                # Only allow known mutable fields
-                allowed = {
-                    "name", "description", "status", "kb_module_id", "agent_id",
-                    "target_audience", "passing_score", "tier_sequence",
-                    "tier_config", "approval_required", "assigned_users",
-                }
-                for key, value in updates.items():
-                    if key in allowed and value is not None:
-                        course[key] = value
+                if name is not None: course["name"] = name
+                if description is not None: course["description"] = description
+                if kb_module_id is not None: course["kb_module_id"] = kb_module_id
+                if agent_id is not None: course["agent_id"] = agent_id
+                if target_audience is not None: course["target_audience"] = target_audience
+                if passing_score is not None: course["passing_score"] = passing_score
+                if custom_rubric is not None: course["custom_rubric"] = custom_rubric
+                if course_materials_context is not None: course["course_materials_context"] = course_materials_context
+                if custom_agent_instructions is not None: course["custom_agent_instructions"] = custom_agent_instructions
+                if custom_objections is not None: course["custom_objections"] = custom_objections
+                if status is not None: course["status"] = status
+                if tier_sequence is not None: course["tier_sequence"] = tier_sequence
+                if tier_config is not None: course["tier_config"] = tier_config
+                if approval_required is not None: course["approval_required"] = approval_required
+                if assigned_users is not None: course["assigned_users"] = assigned_users
                 course["updated_at"] = _now()
                 self._write(courses)
                 return course
         return None
 
     def set_status(self, course_id: str, status: str) -> dict[str, Any] | None:
-        return self.update_course(course_id, {"status": status})
+        return self.update_course(course_id, status=status)
 
     def delete_course(self, course_id: str) -> dict[str, Any] | None:
         courses = self._read()

@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import asyncio
 from pathlib import Path
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -78,27 +79,29 @@ class RAGEngine:
             logger.error("Error processing document: %s", e)
             return False, str(e), 0
 
-    def retrieve_context(self, query, top_k=3, module_id=None):
+    async def retrieve_context(self, query, top_k=3, module_id=None, rerank=True):
         """Hybrid retrieval: over-fetch with semantic search, then rerank for precision."""
         try:
-            filter_kwargs = {"module_id": module_id} if module_id else None
+            filter_kwargs = {"module_id": module_id} if (module_id and module_id != "ALL") else None
             # Over-fetch 3x candidates for reranking
-            fetch_k = top_k * 3
-            results = self.vector_store.similarity_search(query, k=fetch_k, filter=filter_kwargs)
+            fetch_k = top_k * 3 if rerank else top_k
+            results = await asyncio.to_thread(
+                self.vector_store.similarity_search, query, k=fetch_k, filter=filter_kwargs
+            )
 
             if not results:
                 return ""
 
-            # Keyword boost: prioritize chunks containing query terms
-            query_terms = set(re.findall(r'\w+', query.lower()))
-            for doc in results:
-                doc_terms = set(re.findall(r'\w+', doc.page_content.lower()))
-                doc.metadata["keyword_overlap"] = len(query_terms & doc_terms)
+            if rerank and len(results) > top_k:
+                # Keyword boost: prioritize chunks containing query terms
+                query_terms = set(re.findall(r'\w+', query.lower()))
+                for doc in results:
+                    doc_terms = set(re.findall(r'\w+', doc.page_content.lower()))
+                    doc.metadata["keyword_overlap"] = len(query_terms & doc_terms)
 
-            # Cross-encoder reranking for final precision
-            if len(results) > top_k:
+                # Cross-encoder reranking for final precision
                 pairs = [[query, doc.page_content] for doc in results]
-                scores = self.reranker.predict(pairs)
+                scores = await asyncio.to_thread(self.reranker.predict, pairs)
                 scored = sorted(zip(scores, results), key=lambda x: x[0], reverse=True)
                 results = [doc for _, doc in scored[:top_k]]
             else:
@@ -113,7 +116,10 @@ class RAGEngine:
     def get_all_context_for_module(self, module_id, max_chars=20000):
         """Retrieves all document chunks for a module up to a char limit."""
         try:
-            matches = self.vector_store.get(where={"module_id": module_id})
+            if module_id == "ALL":
+                matches = self.vector_store.get()
+            else:
+                matches = self.vector_store.get(where={"module_id": module_id})
             docs = matches.get("documents", [])
             if not docs:
                 return ""

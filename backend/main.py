@@ -75,6 +75,7 @@ class MockCallStartRequest(BaseModel):
     sales_rep_id: str
     module_id: str | None = None
     round: int = 2  # 1 = AI counsellor demo, 2 = AI prospect (learner pitches)
+    course_id: str | None = None
 
 
 class MockCallEvaluateRequest(BaseModel):
@@ -86,6 +87,8 @@ class MockCallEvaluateRequest(BaseModel):
     transcript: str | None = None # backwards compat
     text_question: str | None = None # backwards compat
     text_answer: str | None = None # backwards compat
+    course_id: str | None = None
+    sales_rep_id: str | None = None
 
 
 class HealthResponse(BaseModel):
@@ -181,10 +184,12 @@ class MockCallEvalResponse(BaseModel):
     voice_feedback: str
     text_feedback: str | None = None
     module_id: str | None = None
+    course_id: str | None = None
     hiring_decision: str
     strengths: str | None = None
     improvement_areas: str | None = None
     priority_focus: str | None = None
+    passing_score: float | None = None
 
 
 class MockCallHistoryResponse(BaseModel):
@@ -198,6 +203,10 @@ class CourseCreateRequest(BaseModel):
     agent_id: str | None = None
     target_audience: str = ""
     passing_score: float = 7.0
+    custom_rubric: dict | None = None
+    course_materials_context: str = ""
+    custom_agent_instructions: str = ""
+    custom_objections: list[str] | None = None
 
 
 class CourseUpdateRequest(BaseModel):
@@ -208,6 +217,10 @@ class CourseUpdateRequest(BaseModel):
     agent_id: str | None = None
     target_audience: str | None = None
     passing_score: float | None = None
+    custom_rubric: dict | None = None
+    course_materials_context: str | None = None
+    custom_agent_instructions: str | None = None
+    custom_objections: list[str] | None = None
     tier_sequence: list[str] | None = None
     tier_config: dict[str, Any] | None = None
     approval_required: bool | None = None
@@ -222,6 +235,10 @@ class StepCompleteRequest(BaseModel):
     sales_rep_id: str = Field(..., min_length=1)
     course_id: str = Field(..., min_length=1)
     step: str = Field(..., description="tier1 | tier2 | tier3 | evaluation")
+    final_score: float | None = None
+    session_id: str | None = None
+    dimensions: dict[str, Any] | None = None
+    hiring_decision: str | None = None
 
 
 class ApprovalDecisionRequest(BaseModel):
@@ -248,11 +265,15 @@ class ConfigResponse(BaseModel):
     active_agent_id: str | None = None
     timer_minutes: int
     agents: list[dict[str, str]] | None = None
+    all_courses_passing_score: float | None = None
+    all_courses_agent_id: str | None = None
 
 class ConfigUpdateRequest(BaseModel):
     active_module_id: str | None = None
     active_agent_id: str | None = None
     timer_minutes: int | None = None
+    all_courses_passing_score: float | None = None
+    all_courses_agent_id: str | None = None
 
 class AgentCreateRequest(BaseModel):
     name: str = Field(..., min_length=1)
@@ -305,7 +326,13 @@ async def get_config():
 
 @app.post("/api/config", response_model=ConfigResponse)
 async def update_config(request: ConfigUpdateRequest):
-    return config_store.update_config(request.active_module_id, request.active_agent_id, request.timer_minutes)
+    return config_store.update_config(
+        active_module_id=request.active_module_id,
+        active_agent_id=request.active_agent_id,
+        timer_minutes=request.timer_minutes,
+        all_courses_passing_score=request.all_courses_passing_score,
+        all_courses_agent_id=request.all_courses_agent_id,
+    )
 
 @app.get("/api/agents")
 async def list_agents():
@@ -367,7 +394,7 @@ async def upload_module_document(module_id: str, file: UploadFile = File(...)):
     )
     if not success:
         document_store.mark_document_failed(module_id, document["id"], msg)
-        raise HTTPException(status_code=500, detail=msg)
+        raise HTTPException(status_code=400, detail=f"Failed to process document: {msg}")
 
     indexed_document = document_store.mark_document_indexed(module_id, document["id"], chunk_count)
     return {"message": "Document uploaded and indexed successfully.", "document": indexed_document}
@@ -401,7 +428,7 @@ async def chat_with_agent(request: ChatRequest, raw_request: Request):
     if request.tier == 2 and is_first_turn:
         context = rag_engine.get_all_context_for_module(request.module_id) if request.module_id else ""
     else:
-        context = rag_engine.retrieve_context(request.message, module_id=request.module_id)
+        context = await rag_engine.retrieve_context(request.message, module_id=request.module_id)
 
     if request.module_id and not context.strip():
         return {
@@ -459,7 +486,7 @@ async def chat_with_agent(request: ChatRequest, raw_request: Request):
 @app.get("/api/test/start", response_model=QuestionListResponse)
 async def start_evaluation(module_id: str | None = Query(default=None)):
     _validate_module_id(module_id)
-    context = rag_engine.retrieve_context("Company product features overview target audience", top_k=5, module_id=module_id)
+    context = await rag_engine.retrieve_context("Company product features overview target audience", top_k=5, module_id=module_id)
     if not context.strip():
         raise HTTPException(status_code=400, detail="Knowledge base is empty. Please upload documents first.")
     questions = evaluator.generate_questions(context, num_questions=3)
@@ -469,7 +496,7 @@ async def start_evaluation(module_id: str | None = Query(default=None)):
 @app.post("/api/test/evaluate", response_model=EvalResponse)
 async def evaluate_answer(request: EvalRequest):
     _validate_module_id(request.module_id)
-    context = rag_engine.retrieve_context(request.question, module_id=request.module_id)
+    context = await rag_engine.retrieve_context(request.question, module_id=request.module_id)
     if request.module_id and not context.strip():
         raise HTTPException(status_code=400, detail="Knowledge base module has no relevant indexed content for this question.")
     result = evaluator.evaluate_answer(request.question, request.answer, context)
@@ -483,7 +510,8 @@ async def start_mock_call(request: MockCallStartRequest, raw_request: Request):
     _validate_module_id(request.module_id)
     try:
         session = await livekit_service.create_mock_call_session(
-            request.sales_rep_id, request.module_id, round_num=request.round
+            request.sales_rep_id, request.module_id, round_num=request.round,
+            course_id=request.course_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -503,12 +531,22 @@ async def evaluate_mock_call(request: MockCallEvaluateRequest, raw_request: Requ
     if not context.strip():
         raise HTTPException(status_code=400, detail="Knowledge base module has no indexed content. Upload documents first.")
 
+    # Resolve the course's passing_score and agent_id (fall back to globals).
+    passing_score = 7.0
     config = config_store.get_config()
     agent_id = config.get("active_agent_id")
+    course = None
+    if request.course_id:
+        course = course_store.get_course(request.course_id)
+        if course:
+            if course.get("passing_score") is not None:
+                passing_score = float(course["passing_score"])
+            if course.get("agent_id"):
+                agent_id = course["agent_id"]
 
     # ── Tier 3 Round 2: voice-only counsellor assessment ──────────────────────
     if request.round == 2:
-        result = evaluator.evaluate_round2_call(v_transcript, context)
+        result = evaluator.evaluate_round2_call(v_transcript, context, passing_threshold=passing_score, course=course)
         voice_score = result["voice_score"]
         hiring_decision = result["hiring_decision"]
         final_score = round(float(voice_score), 2)
@@ -516,8 +554,11 @@ async def evaluate_mock_call(request: MockCallEvaluateRequest, raw_request: Requ
         mock_call_history_store.add(
             {
                 "session_id": request.session_id,
+                "course_id": request.course_id,
+                "sales_rep_id": request.sales_rep_id,
                 "module_id": request.module_id,
                 "agent_id": agent_id,
+                "passing_score": passing_score,
                 "transcript": v_transcript,
                 "voice_score": voice_score,
                 "text_score": 0,
@@ -546,10 +587,12 @@ async def evaluate_mock_call(request: MockCallEvaluateRequest, raw_request: Requ
             "voice_feedback": result["improvement_areas"],
             "text_feedback": None,
             "module_id": request.module_id,
+            "course_id": request.course_id,
             "hiring_decision": hiring_decision,
             "strengths": result["strengths"],
             "improvement_areas": result["improvement_areas"],
             "priority_focus": result["priority_focus"],
+            "passing_score": passing_score,
         }
 
     # ── Legacy: combined chat + voice full-session evaluation ──────────────────
@@ -560,9 +603,12 @@ async def evaluate_mock_call(request: MockCallEvaluateRequest, raw_request: Requ
     mock_call_history_store.add(
         {
             "session_id": request.session_id,
+            "course_id": request.course_id,
+            "sales_rep_id": request.sales_rep_id,
             "module_id": request.module_id,
             "agent_id": agent_id,
-            "transcript": v_transcript, # keep naming for old frontend UI if needed
+            "passing_score": passing_score,
+            "transcript": v_transcript,
             "text_question": "Chat Transcript Graded",
             "text_answer": c_transcript,
             "voice_score": result["voice_score"],
@@ -591,6 +637,7 @@ async def evaluate_mock_call(request: MockCallEvaluateRequest, raw_request: Requ
         "voice_feedback": result["voice_feedback"],
         "text_feedback": result["chat_feedback"],
         "module_id": request.module_id,
+        "course_id": request.course_id,
         "hiring_decision": hiring_decision,
     }
 
@@ -647,6 +694,12 @@ async def get_session_transcript(room_name: str):
     }
 
 
+@app.get("/api/sessions/last-dispatched", include_in_schema=True)
+async def get_last_dispatched_session():
+    """Returns the last dispatched session info (round, module_id, course_id) for fallback lookup."""
+    return livekit_service.get_last_dispatched()
+
+
 @app.post("/api/sessions/{room_name}/transcript", include_in_schema=True)
 async def save_session_transcript(room_name: str, payload: dict):
     """
@@ -669,6 +722,8 @@ def _is_supported_file(filename: str | None) -> bool:
 
 
 def _validate_module_id(module_id: str | None) -> None:
+    if module_id == "ALL":
+        return
     if module_id and not document_store.get_module(module_id):
         raise HTTPException(status_code=404, detail="Knowledge base module not found.")
 
@@ -716,6 +771,10 @@ async def create_course(request: CourseCreateRequest):
         agent_id=request.agent_id,
         target_audience=request.target_audience,
         passing_score=request.passing_score,
+        custom_rubric=request.custom_rubric,
+        course_materials_context=request.course_materials_context,
+        custom_agent_instructions=request.custom_agent_instructions,
+        custom_objections=request.custom_objections,
     )
     return course
 
@@ -731,7 +790,7 @@ async def get_course(course_id: str):
 @app.put("/api/admin/courses/{course_id}")
 async def update_course(course_id: str, request: CourseUpdateRequest):
     updates = request.model_dump(exclude_none=True)
-    course = course_store.update_course(course_id, updates)
+    course = course_store.update_course(course_id, **updates)
     if not course:
         raise HTTPException(status_code=404, detail="Course not found.")
     return course
@@ -813,7 +872,8 @@ async def evaluation_stats():
         vals = [float(r[key]) for r in records if r.get(key) not in (None, 0)]
         return round(sum(vals) / len(vals), 2) if vals else 0.0
 
-    passing = [r for r in records if float(r.get("final_score") or 0) >= 7.0]
+    passing = [r for r in records
+               if float(r.get("final_score") or 0) >= float(r.get("passing_score") or 7.0)]
     hire_rate = round((len(passing) / total) * 100, 1) if total else 0.0
 
     return {
@@ -835,12 +895,23 @@ async def evaluation_stats():
 async def evaluation_leaderboard(module_id: str | None = Query(default=None)):
     """Trainees ranked by final score (highest first)."""
     records = mock_call_history_store.list(module_id=module_id)
-    ranked = sorted(records, key=lambda r: float(r.get("final_score") or 0), reverse=True)
+    
+    # Deduplicate by rep (highest score). Old sessions without a rep get their own entry.
+    best_by_rep = {}
+    for r in records:
+        score = float(r.get("final_score") or 0)
+        rep_id = r.get("sales_rep_id") or r.get("session_id") or "unknown"
+        if rep_id not in best_by_rep or score > float(best_by_rep[rep_id].get("final_score") or 0):
+            best_by_rep[rep_id] = r
+            
+    ranked = sorted(best_by_rep.values(), key=lambda r: float(r.get("final_score") or 0), reverse=True)
     leaderboard = []
     for i, r in enumerate(ranked, start=1):
         leaderboard.append({
             "rank": i,
             "session_id": r.get("session_id"),
+            "sales_rep_id": r.get("sales_rep_id") or "unknown",
+            "course_id": r.get("course_id"),
             "module_id": r.get("module_id"),
             "final_score": r.get("final_score"),
             "product_accuracy": r.get("product_accuracy"),
@@ -943,7 +1014,13 @@ async def get_progress(sales_rep_id: str = Query(...), course_id: str = Query(..
 
 @app.post("/api/progress/complete")
 async def complete_progress_step(request: StepCompleteRequest):
-    rec = progress_store.complete_step(request.sales_rep_id, request.course_id, request.step)
+    rec = progress_store.complete_step(
+        request.sales_rep_id, request.course_id, request.step,
+        final_score=request.final_score,
+        session_id=request.session_id,
+        dimensions=request.dimensions,
+        hiring_decision=request.hiring_decision,
+    )
     if rec is None:
         raise HTTPException(status_code=400, detail="Invalid step.")
     return rec

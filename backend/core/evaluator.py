@@ -74,40 +74,67 @@ class Evaluator:
 
         return {"score": score, "feedback": feedback, "raw_response": response}
 
-    def evaluate_mock_call(self, transcript, context):
+    def evaluate_mock_call(self, transcript, context, course=None):
         """Evaluates a single mock call transcript with detailed rubrics."""
         system = (
             "You are a calibrated AI sales evaluator. Score strictly against the rubric. "
             "Compare ALL rep claims against the Knowledge Base. Fabrications = heavy penalty."
         )
-        prompt = (
-            "RUBRIC — Score each dimension 1-10:\n\n"
-            "ProductAccuracy (weight: HIGH):\n"
+        
+        # Load global defaults or overrides from course
+        custom_rubric = course.get("custom_rubric", {}) if course else {}
+        materials_context = course.get("course_materials_context", "") if course else ""
+        
+        rubric_product = custom_rubric.get("product_accuracy") or (
             "  10: All claims match KB exactly, deep product knowledge\n"
             "  7: Mostly accurate, minor omissions\n"
             "  4: Mix of correct and fabricated information\n"
-            "  1: Mostly fabricated or completely wrong\n\n"
-            "Discovery:\n"
+            "  1: Mostly fabricated or completely wrong"
+        )
+        rubric_discovery = custom_rubric.get("discovery") or (
             "  10: Asked 3+ targeted qualifying questions, uncovered real pain\n"
             "  7: Asked 1-2 good questions\n"
             "  4: Only surface-level questions\n"
-            "  1: No discovery questions asked\n\n"
-            "ObjectionHandling:\n"
+            "  1: No discovery questions asked"
+        )
+        rubric_objections = custom_rubric.get("objection_handling") or (
             "  10: Acknowledged, empathized, reframed with KB-grounded proof\n"
             "  7: Addressed objections but missed empathy or proof\n"
             "  4: Dismissed or gave generic responses\n"
-            "  1: Ignored objections entirely\n\n"
-            "Empathy:\n"
+            "  1: Ignored objections entirely"
+        )
+        rubric_empathy = custom_rubric.get("empathy") or (
             "  10: Active listening, adapted pitch to prospect's stated needs\n"
             "  7: Some adaptation, mostly scripted\n"
             "  4: Talked past the customer\n"
-            "  1: Robotic, no acknowledgment of prospect\n\n"
-            "ClosingClarity:\n"
+            "  1: Robotic, no acknowledgment of prospect"
+        )
+        rubric_closing = custom_rubric.get("closing_clarity") or (
             "  10: Clear next step proposed, confident ask\n"
             "  7: Vague suggestion of next steps\n"
             "  4: No close attempted\n"
-            "  1: Ended abruptly or lost control\n\n"
+            "  1: Ended abruptly or lost control"
+        )
+        
+        materials_section = ""
+        if materials_context:
+            materials_section = f"══ Course Materials Context ══\n{materials_context}\n\n"
+
+        prompt = (
+            "RUBRIC — Score each dimension 1-10:\n\n"
+            f"ProductAccuracy (weight: HIGH):\n{rubric_product}\n\n"
+            f"Discovery:\n{rubric_discovery}\n\n"
+            f"ObjectionHandling:\n{rubric_objections}\n\n"
+            f"Empathy:\n{rubric_empathy}\n\n"
+            f"ClosingClarity:\n{rubric_closing}\n\n"
+            "STRICT EVALUATION RULES (MANDATORY):\n"
+            "- If a sales phase or skill (Discovery, Objection Handling, or Closing) was not reached, not attempted, or is missing from the transcript, you MUST assign a score of 1.0 for that dimension. Do NOT give a default middle-ground score (like 3-5).\n"
+            "- If the rep did not ask at least 2 distinct discovery/qualifying questions to uncover pain, Discovery MUST be scored 1.0 or 2.0 max.\n"
+            "- If no objections were raised/handled, or the rep did not use KB-backed evidence to address them, ObjectionHandling MUST be scored 1.0.\n"
+            "- If the rep did not propose a clear, specific next step (with date/time/action) or the call ended before a close was attempted, ClosingClarity MUST be scored 1.0.\n"
+            "- If the trainee speaks very little (e.g. fewer than 150 words total, or mostly one-word/fragmented answers like 'Yep', 'Yeah', 'Anything', 'subordinate'), the entire mock call is incomplete. In this case, you MUST heavily penalize all scores. ProductAccuracy and Empathy/Communication MUST NOT exceed 4.0, and the overall score must be capped at 3.0 or lower.\n\n"
             "ANTI-HALLUCINATION: List ALL claims by the rep not found in the KB.\n\n"
+            f"{materials_section}"
             f"══ Knowledge Base Context (ground truth) ══\n{context}\n\n"
             f"══ Mock Call Transcript ══\n{transcript}\n\n"
             "OUTPUT (exact format):\n"
@@ -123,16 +150,21 @@ class Evaluator:
             [{"role": "user", "content": prompt}], system=system, max_tokens=1500
         )
 
-        def _get(pattern):
-            m = re.search(pattern, response, re.IGNORECASE)
-            return min(10, max(1, int(m.group(1)))) if m else 0
+        def _get(key):
+            m = re.search(rf"{key}:\s*(.*?)(?=\n|$)", response, re.IGNORECASE)
+            if not m: return 0
+            nums = re.findall(r"[\d\.]+", m.group(1))
+            try:
+                return min(10.0, max(1.0, float(nums[0]))) if nums else 0
+            except ValueError:
+                return 0
 
         scores = {
-            "product_accuracy": _get(r"ProductAccuracy:\s*(\d+)"),
-            "discovery": _get(r"Discovery:\s*(\d+)"),
-            "objection_handling": _get(r"ObjectionHandling:\s*(\d+)"),
-            "empathy": _get(r"Empathy:\s*(\d+)"),
-            "closing_clarity": _get(r"ClosingClarity:\s*(\d+)"),
+            "product_accuracy": _get("ProductAccuracy"),
+            "discovery": _get("Discovery"),
+            "objection_handling": _get("ObjectionHandling"),
+            "empathy": _get("Empathy"),
+            "closing_clarity": _get("ClosingClarity"),
         }
         valid = [v for v in scores.values() if v > 0]
         score = round(sum(valid) / len(valid), 2) if valid else 0
@@ -195,6 +227,12 @@ class Evaluator:
             "('that's not really an issue'), uses heavy jargon, never attempts a close.\n"
             "→ ProductKnowledge:2, Discovery:1, ObjectionHandling:3, Communication:3, ClosingClarity:1\n\n"
             "═══ END CALIBRATION ═══\n\n"
+            "STRICT EVALUATION RULES (MANDATORY):\n"
+            "- If a sales phase or skill (Discovery, Objection Handling, or Closing) was not reached, not attempted, or is missing from the transcript, you MUST assign a score of 1.0 for that dimension. Do NOT give a default middle-ground score (like 3-5).\n"
+            "- If the rep did not ask at least 2 distinct discovery/qualifying questions to uncover pain, Discovery MUST be scored 1.0 or 2.0 max.\n"
+            "- If no objections were raised/handled, or the rep did not use KB-backed evidence to address them, ObjectionHandling MUST be scored 1.0.\n"
+            "- If the rep did not propose a clear, specific next step (with date/time/action) or the call ended before a close was attempted, ClosingClarity MUST be scored 1.0.\n"
+            "- If the trainee speaks very little (e.g. fewer than 150 words total, or mostly one-word/fragmented answers like 'Yep', 'Yeah', 'Anything', 'subordinate'), the entire mock call is incomplete. In this case, you MUST heavily penalize all scores. ProductKnowledge and Communication/Empathy MUST NOT exceed 4.0, and the overall VoiceScore must be capped at 3.0 or lower.\n\n"
             "ANTI-HALLUCINATION STEP (required):\n"
             "Before scoring, list EVERY factual product claim the rep made. "
             "Mark each as [VERIFIED] or [NOT IN KB]. Use [NOT IN KB] claims to reduce ProductKnowledge score.\n\n"
@@ -217,12 +255,17 @@ class Evaluator:
             [{"role": "user", "content": prompt}], system=system, max_tokens=2048
         )
 
-        def _get(pattern):
-            m = re.search(pattern, response, re.IGNORECASE)
-            return min(10, max(1, int(m.group(1)))) if m else 0
+        def _get(key):
+            m = re.search(rf"{key}:\s*(.*?)(?=\n|$)", response, re.IGNORECASE)
+            if not m: return 0
+            nums = re.findall(r"[\d\.]+", m.group(1))
+            try:
+                return min(10.0, max(1.0, float(nums[0]))) if nums else 0
+            except ValueError:
+                return 0
 
-        chat_score = _get(r"ChatScore:\s*(\d+)")
-        voice_score = _get(r"VoiceScore:\s*(\d+)")
+        chat_score = _get("ChatScore")
+        voice_score = _get("VoiceScore")
 
         chat_fb = re.search(r"ChatFeedback:\s*(.*?)(?=VoiceFeedback:|$)", response, re.IGNORECASE | re.DOTALL)
         voice_fb = re.search(r"VoiceFeedback:\s*(.*)", response, re.IGNORECASE | re.DOTALL)
@@ -230,31 +273,38 @@ class Evaluator:
         return {
             "chat_score": chat_score,
             "voice_score": voice_score,
-            "product_accuracy": _get(r"ProductKnowledge:\s*(\d+)"),
-            "discovery": _get(r"Discovery:\s*(\d+)"),
-            "objection_handling": _get(r"ObjectionHandling:\s*(\d+)"),
-            "empathy": _get(r"Communication:\s*(\d+)"),
-            "closing_clarity": _get(r"ClosingClarity:\s*(\d+)"),
+            "product_accuracy": _get("ProductKnowledge"),
+            "discovery": _get("Discovery"),
+            "objection_handling": _get("ObjectionHandling"),
+            "empathy": _get("Communication"),
+            "closing_clarity": _get("ClosingClarity"),
             "chat_feedback": chat_fb.group(1).strip() if chat_fb else "No chat feedback.",
             "voice_feedback": voice_fb.group(1).strip() if voice_fb else "No voice feedback.",
             "raw_response": response,
         }
 
-    def evaluate_round2_call(self, voice_transcript, context):
+    def evaluate_round2_call(self, voice_transcript, context, passing_threshold: float = 7.0, course: dict | None = None):
         """
         Evaluates a Tier 3 Round 2 voice call (learner = counsellor, AI = prospect).
         Returns per-dimension scores plus strengths, improvement areas, priority focus,
-        and a hiring decision (threshold VoiceScore >= 7.0).
+        and a hiring decision. The decision is computed SERVER-SIDE against
+        `passing_threshold` (the LLM only emits a recommendation — it does not know
+        the course's actual pass mark, so its textual decision cannot be trusted).
         """
         system = prompts.tier3_eval_system()
-        prompt = prompts.tier3_eval_prompt(context, voice_transcript)
+        prompt = prompts.tier3_eval_prompt(context, voice_transcript, passing_threshold=passing_threshold, course=course)
         response = llm_client.generate(
             [{"role": "user", "content": prompt}], system=system, max_tokens=2048
         )
 
-        def _get(pattern):
-            m = re.search(pattern, response, re.IGNORECASE)
-            return min(10, max(1, int(m.group(1)))) if m else 0
+        def _get(key):
+            m = re.search(rf"{key}:\s*(.*?)(?=\n|$)", response, re.IGNORECASE)
+            if not m: return 0
+            nums = re.findall(r"[\d\.]+", m.group(1))
+            try:
+                return min(10.0, max(1.0, float(nums[0]))) if nums else 0
+            except ValueError:
+                return 0
 
         def _section(label, next_labels):
             stop = "|".join(next_labels) if next_labels else "$"
@@ -265,13 +315,13 @@ class Evaluator:
             )
             return m.group(1).strip() if m else ""
 
-        product_accuracy = _get(r"ProductAccuracy:\s*(\d+)")
-        discovery = _get(r"Discovery:\s*(\d+)")
-        objection_handling = _get(r"ObjectionHandling:\s*(\d+)")
-        empathy = _get(r"Empathy:\s*(\d+)")
-        closing_clarity = _get(r"ClosingClarity:\s*(\d+)")
+        product_accuracy = _get("ProductAccuracy")
+        discovery = _get("Discovery")
+        objection_handling = _get("ObjectionHandling")
+        empathy = _get("Empathy")
+        closing_clarity = _get("ClosingClarity")
 
-        voice_score = _get(r"VoiceScore:\s*(\d+)")
+        voice_score = _get("VoiceScore")
         if voice_score == 0:
             dims = [product_accuracy, discovery, objection_handling, empathy, closing_clarity]
             valid = [d for d in dims if d > 0]
@@ -281,11 +331,18 @@ class Evaluator:
         improvements = _section("ImprovementAreas", ["PriorityFocus", "HiringDecision"])
         priority = _section("PriorityFocus", ["HiringDecision"])
 
+        # The hiring decision is computed SERVER-SIDE against the course's pass
+        # mark. The LLM's textual HiringDecision line is captured for reference
+        # only — it only ever knows a 7.0 threshold and cannot be trusted.
+        try:
+            threshold_ok = float(voice_score) >= float(passing_threshold)
+        except (TypeError, ValueError):
+            threshold_ok = False
         hd_match = re.search(r"HiringDecision:\s*(.*)", response, re.IGNORECASE)
         if hd_match and hd_match.group(1).strip():
-            hiring_decision = hd_match.group(1).strip().splitlines()[0].strip()
-        else:
-            hiring_decision = "Hire" if float(voice_score) >= 7.0 else "Not Ready Yet"
+            # Captured for reference only; not used for the final decision.
+            hd_match.group(1).strip().splitlines()[0].strip()
+        hiring_decision = "Hire" if threshold_ok else "Not Ready Yet"
 
         return {
             "voice_score": voice_score,
@@ -298,6 +355,7 @@ class Evaluator:
             "improvement_areas": improvements or "No specific improvements captured.",
             "priority_focus": priority or "No priority focus captured.",
             "hiring_decision": hiring_decision,
+            "passing_threshold": float(passing_threshold),
             "raw_response": response,
         }
 

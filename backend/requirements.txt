@@ -16,9 +16,13 @@ requests
 python-dotenv
 python-multipart
 anthropic
+aiohttp
 livekit-api
 livekit-agents
 livekit-plugins-anthropic
+livekit-plugins-deepgram
 livekit-plugins-elevenlabs
 livekit-plugins-silero
 livekit-plugins-cartesia
+groq
+livekit-plugins-groq
