@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from config import config
+from core.atomic_json import atomic_read, atomic_write
 
 
 class MockCallHistoryStore:
@@ -35,12 +36,10 @@ class MockCallHistoryStore:
         return records
 
     def _read(self) -> list[dict[str, Any]]:
-        with self.path.open("r", encoding="utf-8") as file:
-            return json.load(file)
+        return atomic_read(self.path)
 
     def _write(self, records: list[dict[str, Any]]) -> None:
-        with self.path.open("w", encoding="utf-8") as file:
-            json.dump(records, file, indent=2)
+        atomic_write(self.path, records)
 
     def _timestamp_id(self) -> str:
         return datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")

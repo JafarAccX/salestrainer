@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import UploadFile
 
 from config import config
+from core.atomic_json import atomic_read, atomic_write
 
 
 class DocumentStore:
@@ -159,12 +160,10 @@ class DocumentStore:
         return None
 
     def _read_modules(self) -> list[dict[str, Any]]:
-        with self.modules_file.open("r", encoding="utf-8") as file:
-            return json.load(file)
+        return atomic_read(self.modules_file)
 
     def _write_modules(self, modules: list[dict[str, Any]]) -> None:
-        with self.modules_file.open("w", encoding="utf-8") as file:
-            json.dump(modules, file, indent=2)
+        atomic_write(self.modules_file, modules)
 
     def _safe_filename(self, filename: str) -> str:
         allowed = [char for char in filename if char.isalnum() or char in "._- "]

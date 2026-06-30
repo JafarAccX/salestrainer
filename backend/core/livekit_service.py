@@ -12,16 +12,21 @@ and starts the SalesTrainerAgent inside the room.
 """
 import uuid
 from datetime import datetime, timezone
+import json
+import logging
 from typing import Any
 
 from config import config
 from core.livekit_session_store import livekit_session_store
 from core.rag_engine import rag_engine
+from core.document_store import document_store
+
+logger = logging.getLogger(__name__)
 
 
 class LiveKitService:
     async def create_mock_call_session(
-        self, sales_rep_id: str, module_id: str | None = None
+        self, sales_rep_id: str, module_id: str | None = None, round_num: int = 2
     ) -> dict[str, Any]:
         room_name = f"mock-call-{uuid.uuid4()}"
         participant_identity = sales_rep_id or f"sales-rep-{uuid.uuid4()}"
@@ -38,6 +43,44 @@ class LiveKitService:
             raise ValueError(
                 "Knowledge base module has no indexed content for the mock call."
             )
+
+        # Resolve the module display name for the agent prompt
+        module_name = ""
+        if module_id:
+            module = document_store.get_module(module_id)
+            if module:
+                module_name = module.get("name", "")
+
+        # Resolve the configured admin agent behaviour (if any). The active agent
+        # id is stored in config_store; the rich behaviour config lives in
+        # agent_store. We compile its instructions + LLM settings here so the
+        # worker can apply them directly without DB access.
+        agent_instructions = ""
+        agent_llm_settings: dict[str, Any] = {}
+        try:
+            from core.config_store import config_store
+            from core.agent_store import agent_store
+
+            active_id = config_store.get_config().get("active_agent_id")
+            if active_id:
+                agent_cfg = agent_store.get_agent(active_id)
+                if agent_cfg and round_num == 2 and agent_cfg.get("tier3_round2_enabled", True):
+                    agent_instructions = agent_store.build_instructions(
+                        agent_cfg, kb_context=kb_context, module_name=module_name
+                    )
+                    agent_llm_settings = agent_cfg.get("llm_settings") or {}
+        except Exception as exc:
+            logger.warning("Agent behaviour resolution failed (non-fatal): %s", exc)
+
+        # Build structured metadata. KB context is NOT included (too large for
+        # LiveKit metadata limits). The worker fetches it via HTTP instead.
+        job_metadata = json.dumps({
+            "round": round_num,
+            "module_id": module_id or "",
+            "module_name": module_name,
+            "agent_instructions": agent_instructions,
+            "agent_llm_settings": agent_llm_settings,
+        })
 
         # ── 2. Build participant JWT (for the browser / frontend) ─────────────
         participant_token = self._build_participant_token(
@@ -71,20 +114,18 @@ class LiveKitService:
                     api.CreateAgentDispatchRequest(
                         agent_name=config.LIVEKIT_AGENT_NAME,
                         room=room_name,
-                        metadata=kb_context,  # passed to ctx.job.metadata
+                        metadata=job_metadata,  # JSON: round, module_name, kb_context
                     )
                 )
                 await lkapi.aclose()
                 agent_dispatched = True
-                print(
-                    f"[LiveKitService] Room '{room_name}' created and agent "
-                    f"'{config.LIVEKIT_AGENT_NAME}' dispatched successfully."
+                logger.info(
+                    "Room '%s' created and agent '%s' dispatched.",
+                    room_name, config.LIVEKIT_AGENT_NAME,
                 )
 
             except Exception as exc:
-                print(
-                    f"[LiveKitService] Error during room/dispatch setup: {exc}"
-                )
+                logger.error("Error during room/dispatch setup: %s", exc)
 
         # ── 4. Build the connection link for the frontend ─────────────────────
         # Include url + token as query params so the LiveKit playground
@@ -105,6 +146,8 @@ class LiveKitService:
             "room_name": room_name,
             "participant_identity": participant_identity,
             "module_id": module_id,
+            "module_name": module_name,
+            "round": round_num,
             "sales_rep_id": sales_rep_id,
             "kb_context": kb_context,
             "voice_pipeline": {
@@ -146,7 +189,6 @@ class LiveKitService:
             "created_at": session_record["created_at"],
             "frontend_message": frontend_message,
             "connection_link": connection_link,
-            "kb_context": kb_context,
         }
 
     # ── Token helpers ─────────────────────────────────────────────────────────
@@ -174,7 +216,7 @@ class LiveKitService:
             )
             return token.to_jwt()
         except Exception as exc:
-            print(f"[LiveKitService] Error creating participant token: {exc}")
+            logger.error("Error creating participant token: %s", exc)
             return None
 
 

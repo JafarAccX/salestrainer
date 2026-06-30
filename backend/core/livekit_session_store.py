@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from config import config
+from core.atomic_json import atomic_read, atomic_write
 
 
 class LiveKitSessionStore:
@@ -63,12 +64,10 @@ class LiveKitSessionStore:
         self._write(sessions)
 
     def _read(self) -> list[dict[str, Any]]:
-        with self.path.open("r", encoding="utf-8") as file:
-            return json.load(file)
+        return atomic_read(self.path)
 
     def _write(self, sessions: list[dict[str, Any]]) -> None:
-        with self.path.open("w", encoding="utf-8") as file:
-            json.dump(sessions, file, indent=2)
+        atomic_write(self.path, sessions)
 
 
 livekit_session_store = LiveKitSessionStore()

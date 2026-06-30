@@ -447,3 +447,12 @@ uv run --active pdoc --skip-errors --html --output-dir=docs livekit
 </tbody>
 </table>
 <!--END_REPO_NAV-->
+
+
+<!-- 
+# Terminal 1 — API server
+py -3 main.py
+
+# Terminal 2 — voice mock calls
+py -3 voice_agent_worker.py start
+ -->

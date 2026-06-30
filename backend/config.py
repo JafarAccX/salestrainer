@@ -27,6 +27,7 @@ class Config:
     CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY")
     VOICE_STT_PROVIDER = os.getenv("VOICE_STT_PROVIDER", "elevenlabs")
     VOICE_TTS_PROVIDER = os.getenv("VOICE_TTS_PROVIDER", "cartesia")
+    DISABLE_LOCKS = str(os.getenv("DISABLE_LOCKS", "false")).lower() == "true"
 
 config = Config()
 

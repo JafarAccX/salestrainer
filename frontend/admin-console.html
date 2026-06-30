@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sales Trainer — Admin Console</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #273449; --line: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #6366f1; --accent2:#818cf8;
+    --green: #22c55e; --red: #ef4444; --amber: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg); color: var(--text); }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--line);
+    display:flex; align-items:center; gap:16px; }
+  header h1 { font-size: 18px; margin:0; }
+  .tabs { display:flex; gap:8px; padding: 12px 24px; border-bottom:1px solid var(--line);
+    flex-wrap: wrap; }
+  .tab { padding:8px 16px; border-radius:8px; cursor:pointer; color:var(--muted);
+    background:transparent; border:1px solid transparent; font-size:14px; }
+  .tab:hover { background: var(--panel); }
+  .tab.active { background: var(--accent); color:#fff; }
+  main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .view { display:none; }
+  .view.active { display:block; }
+  .tiles { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+    gap:16px; margin-bottom:24px; }
+  .tile { background: var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:18px; }
+  .tile .label { color:var(--muted); font-size:13px; }
+  .tile .value { font-size:28px; font-weight:700; margin-top:6px; }
+  .card { background: var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:20px; margin-bottom:20px; }
+  .card h2 { margin:0 0 16px; font-size:16px; }
+  table { width:100%; border-collapse: collapse; font-size:14px; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
+  tr:hover td { background: var(--panel2); }
+  .badge { padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .badge.draft { background:#475569; color:#e2e8f0; }
+  .badge.active { background: rgba(34,197,94,.2); color: var(--green); }
+  .badge.archived { background: rgba(148,163,184,.2); color: var(--muted); }
+  .badge.hire { background: rgba(34,197,94,.2); color: var(--green); }
+  .badge.nohire { background: rgba(239,68,68,.2); color: var(--red); }
+  .badge.warn { background: rgba(245,158,11,.2); color: var(--amber); }
+  button, .btn { background: var(--accent); color:#fff; border:none; padding:8px 14px;
+    border-radius:8px; cursor:pointer; font-size:13px; }
+  button:hover { background: var(--accent2); }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--text); }
+  button.danger { background: var(--red); }
+  input, textarea, select { width:100%; background: var(--bg); color:var(--text);
+    border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:14px; }
+  label { display:block; margin:12px 0 4px; font-size:13px; color:var(--muted); }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .muted { color: var(--muted); }
+  .bar { height:8px; background: var(--panel2); border-radius:999px; overflow:hidden; }
+  .bar > span { display:block; height:100%; background: var(--accent); }
+  .bar > span.over { background: var(--amber); }
+  .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;}
+  .empty { color:var(--muted); padding:24px; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛠️ Sales Trainer — Admin Console</h1>
+  <span class="muted" id="health">connecting…</span>
+</header>
+
+<nav class="tabs">
+  <div class="tab active" data-view="dashboard">Dashboard</div>
+  <div class="tab" data-view="courses">Courses</div>
+  <div class="tab" data-view="materials">Materials</div>
+  <div class="tab" data-view="agents">AI Agents</div>
+  <div class="tab" data-view="approvals">Approvals</div>
+  <div class="tab" data-view="evaluations">Evaluations</div>
+  <div class="tab" data-view="usage">Token Usage</div>
+</nav>
+
+<main>
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="tiles" id="dash-tiles"></div>
+    <div class="card">
+      <h2>Score by Dimension (averages)</h2>
+      <div id="dash-dims"></div>
+    </div>
+  </section>
+
+  <!-- COURSES -->
+  <section class="view" id="view-courses">
+    <div class="toolbar">
+      <h2 style="margin:0">Courses</h2>
+      <button onclick="toggleCourseForm()">+ New Course</button>
+    </div>
+
+    <div class="card" id="course-form" style="display:none">
+      <h2>Create Course</h2>
+      <label>Name</label>
+      <input id="c-name" placeholder="e.g. GenAI Program — Sales Pitch" />
+      <label>Description</label>
+      <textarea id="c-desc" rows="2"></textarea>
+      <div class="row">
+        <div>
+          <label>Knowledge Base Module</label>
+          <select id="c-module"></select>
+        </div>
+        <div>
+          <label>AI Agent Persona</label>
+          <select id="c-agent"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Target Audience</label>
+          <input id="c-audience" placeholder="SDRs, AEs" />
+        </div>
+        <div>
+          <label>Passing Score (0–10)</label>
+          <input id="c-score" type="number" min="0" max="10" step="0.5" value="7" />
+        </div>
+      </div>
+      <div style="margin-top:16px; display:flex; gap:8px">
+        <button onclick="createCourse()">Create</button>
+        <button class="ghost" onclick="toggleCourseForm()">Cancel</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>Name</th><th>Status</th><th>Enrolled</th><th>Pass Score</th><th>Updated</th><th>Actions</th></tr></thead>
+        <tbody id="courses-body"></tbody>
+      </table>
+      <div class="empty" id="courses-empty" style="display:none">No courses yet. Create your first one.</div>
+    </div>
+  </section>
+
+  <!-- MATERIALS -->
+  <section class="view" id="view-materials">
+    <div class="toolbar">
+      <h2 style="margin:0">Training Materials (Knowledge Base)</h2>
+      <button onclick="toggleModuleForm()">+ New Module</button>
+    </div>
+    <p class="muted" style="margin:-8px 0 16px;font-size:13px">
+      Upload your product documents here. Each <b>Module</b> is a knowledge base; link it to a course on the Courses tab.
+      Supported: PDF, DOCX, TXT, MD.
+    </p>
+
+    <div class="card" id="module-form" style="display:none">
+      <h2>Create Module</h2>
+      <label>Module Name</label>
+      <input id="m-name" placeholder="e.g. GenAI Program — Sales KB" />
+      <label>Description</label>
+      <input id="m-desc" placeholder="What this knowledge base covers" />
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <button onclick="createModule()">Create</button>
+        <button class="ghost" onclick="toggleModuleForm()">Cancel</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Select Module</label>
+      <select id="mat-module" onchange="loadDocs()"></select>
+
+      <div id="upload-zone" style="margin-top:16px;display:none">
+        <label>Upload Document</label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="mat-file" accept=".pdf,.docx,.doc,.txt,.md" style="flex:1;min-width:240px" />
+          <button id="mat-upload" onclick="uploadDoc()">Upload &amp; Index</button>
+        </div>
+        <div id="upload-status" class="muted" style="font-size:13px;margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div class="card" id="docs-card" style="display:none">
+      <h2>Documents in this Module</h2>
+      <table>
+        <thead><tr><th>Filename</th><th>Status</th><th>Chunks</th><th>Uploaded</th><th></th></tr></thead>
+        <tbody id="docs-body"></tbody>
+      </table>
+      <div class="empty" id="docs-empty" style="display:none">No documents yet. Upload one above.</div>
+    </div>
+  </section>
+
+  <!-- AI AGENTS -->
+  <section class="view" id="view-agents">
+    <div class="toolbar">
+      <h2 style="margin:0">AI Agent Behaviour</h2>
+      <button onclick="toggleAgentForm()">+ New Agent</button>
+    </div>
+
+    <div class="card" id="agent-form" style="display:none">
+      <h2 id="agent-form-title">Create Agent</h2>
+      <input type="hidden" id="a-id" />
+      <div class="row">
+        <div>
+          <label>Name</label>
+          <input id="a-name" placeholder="e.g. Sceptical Corporate HR Manager" />
+        </div>
+        <div>
+          <label>Status</label>
+          <select id="a-status"><option value="draft">Draft</option><option value="active">Active</option></select>
+        </div>
+      </div>
+      <label>Description</label>
+      <input id="a-desc" placeholder="Challenging prospect persona for senior reps" />
+
+      <label>Difficulty</label>
+      <select id="a-difficulty" onchange="onDifficultyChange()">
+        <option value="easy">Easy — friendly, 1 objection</option>
+        <option value="medium" selected>Medium — neutral, 2 objections</option>
+        <option value="hard">Hard — guarded, 3 objections</option>
+        <option value="custom">Custom — write instructions</option>
+      </select>
+
+      <div id="a-custom-wrap" style="display:none">
+        <label>Custom Instructions</label>
+        <textarea id="a-base" rows="5" placeholder="You are a demanding corporate HR manager..."></textarea>
+      </div>
+
+      <div id="a-preset-wrap">
+        <div class="row">
+          <div>
+            <label>Prospect Role</label>
+            <input id="a-role" placeholder="VP of HR" />
+          </div>
+          <div>
+            <label>Company Size</label>
+            <input id="a-company" placeholder="500-2000 employees" />
+          </div>
+        </div>
+        <label>Pain Points (comma-separated)</label>
+        <input id="a-pains" placeholder="high attrition, slow onboarding" />
+        <label>Objections to Raise</label>
+        <div id="a-objections" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px"></div>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <div>
+          <label>LLM Temperature (0–1)</label>
+          <input id="a-temp" type="number" min="0" max="1" step="0.1" value="0.7" />
+        </div>
+        <div>
+          <label>Max Tokens per reply</label>
+          <input id="a-maxtok" type="number" min="128" max="2048" step="64" value="512" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:18px;margin-top:12px;font-size:13px">
+        <label style="margin:0"><input type="checkbox" id="a-r1" checked style="width:auto"> Allow Round 1 (demo)</label>
+        <label style="margin:0"><input type="checkbox" id="a-r2" checked style="width:auto"> Allow Round 2 (eval)</label>
+      </div>
+
+      <div style="margin-top:16px; display:flex; gap:8px">
+        <button onclick="saveAgent()">Save</button>
+        <button class="ghost" onclick="previewAgent()">Preview Prompt</button>
+        <button class="ghost" onclick="toggleAgentForm()">Cancel</button>
+      </div>
+      <pre id="a-preview" style="display:none;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:12px;font-size:12px;max-height:260px;overflow:auto"></pre>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>Name</th><th>Difficulty</th><th>Rounds</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="agents-body"></tbody>
+      </table>
+      <div class="empty" id="agents-empty" style="display:none">No agents configured yet.</div>
+    </div>
+  </section>
+
+  <!-- APPROVALS -->
+  <section class="view" id="view-approvals">
+    <div class="toolbar">
+      <h2 style="margin:0">Evaluation Approvals</h2>
+      <button class="ghost" onclick="loadApprovals()">↻ Refresh</button>
+    </div>
+    <p class="muted" style="margin:-8px 0 16px;font-size:13px">
+      Learners who finished their evaluation appear here. Approve to certify them, or reject to send them back for another attempt.
+    </p>
+    <div class="card">
+      <table>
+        <thead><tr><th>Rep ID</th><th>Course</th><th>Submitted</th><th>Action</th></tr></thead>
+        <tbody id="approvals-body"></tbody>
+      </table>
+      <div class="empty" id="approvals-empty" style="display:none">No pending approvals. 🎉</div>
+    </div>
+  </section>
+
+  <!-- EVALUATIONS -->
+  <section class="view" id="view-evaluations">
+    <div class="tiles" id="eval-tiles"></div>
+    <div class="card">
+      <h2>Leaderboard</h2>
+      <table>
+        <thead><tr><th>#</th><th>Session</th><th>Final</th><th>Product</th><th>Discovery</th><th>Objection</th><th>Empathy</th><th>Closing</th><th>Decision</th></tr></thead>
+        <tbody id="leaderboard-body"></tbody>
+      </table>
+      <div class="empty" id="leaderboard-empty" style="display:none">No evaluations recorded yet.</div>
+    </div>
+  </section>
+
+  <!-- TOKEN USAGE -->
+  <section class="view" id="view-usage">
+    <div class="tiles" id="usage-tiles"></div>
+    <div class="card">
+      <h2>Usage by Session</h2>
+      <table>
+        <thead><tr><th>Session</th><th>Course</th><th>Calls</th><th>Tokens</th><th>Cost (USD)</th><th>Usage vs 50k cap</th></tr></thead>
+        <tbody id="usage-body"></tbody>
+      </table>
+      <div class="empty" id="usage-empty" style="display:none">No token usage logged yet.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+const API = "";
+const SESSION_LIMIT = 50000, WARN_PCT = 90;
+
+async function api(path, opts) {
+  const res = await fetch(API + path, opts);
+  if (!res.ok) throw new Error((await res.json().catch(()=>({}))).detail || res.status);
+  return res.json();
+}
+const fmt = n => (n ?? 0).toLocaleString();
+const esc = s => (s ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  document.getElementById("view-" + t.dataset.view).classList.add("active");
+  loadView(t.dataset.view);
+});
+
+function tile(label, value) {
+  return `<div class="tile"><div class="label">${label}</div><div class="value">${value}</div></div>`;
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const [stats, usage] = await Promise.all([
+      api("/api/admin/evaluations/stats"),
+      api("/api/admin/usage"),
+    ]);
+    document.getElementById("dash-tiles").innerHTML =
+      tile("Total Evaluations", stats.total_evaluations) +
+      tile("Avg Final Score", stats.avg_final_score) +
+      tile("Hire Rate", stats.hire_rate_percent + "%") +
+      tile("Tokens Today", fmt(usage.tokens_today)) +
+      tile("Cost Today (USD)", "$" + (usage.cost_today_usd ?? 0));
+    const d = stats.dimension_averages || {};
+    document.getElementById("dash-dims").innerHTML = Object.entries(d).map(([k,v]) =>
+      `<div style="margin:8px 0">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>${k.replace(/_/g,' ')}</span><span class="muted">${v}/10</span></div>
+        <div class="bar"><span style="width:${(v/10)*100}%"></span></div>
+      </div>`).join("");
+  } catch(e) { console.error(e); }
+}
+
+// ── Courses ────────────────────────────────────────────────────────────────
+function toggleCourseForm(){
+  const f = document.getElementById("course-form");
+  f.style.display = f.style.display === "none" ? "block" : "none";
+}
+async function loadCourses() {
+  try {
+    const [{courses}, {modules}, {agents}] = await Promise.all([
+      api("/api/admin/courses"), api("/api/kb/modules"), api("/api/agents"),
+    ]);
+    document.getElementById("c-module").innerHTML =
+      `<option value="">— none —</option>` + modules.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join("");
+    document.getElementById("c-agent").innerHTML =
+      `<option value="">— default —</option>` + agents.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join("");
+
+    const body = document.getElementById("courses-body");
+    document.getElementById("courses-empty").style.display = courses.length ? "none" : "block";
+    body.innerHTML = courses.map(c => `
+      <tr>
+        <td><strong>${esc(c.name)}</strong><br><span class="muted">${esc(c.description||'')}</span></td>
+        <td><span class="badge ${c.status}">${c.status}</span></td>
+        <td>${(c.assigned_users||[]).length}</td>
+        <td>${c.passing_score}</td>
+        <td class="muted">${(c.updated_at||'').slice(0,10)}</td>
+        <td style="white-space:nowrap">
+          ${c.status !== 'active' ? `<button onclick="setStatus('${c.id}','publish')">Publish</button>` : ''}
+          ${c.status !== 'archived' ? `<button class="ghost" onclick="setStatus('${c.id}','archive')">Archive</button>` : ''}
+          <button class="ghost" onclick="dupCourse('${c.id}')">Duplicate</button>
+          <button class="danger" onclick="delCourse('${c.id}')">Delete</button>
+        </td>
+      </tr>`).join("");
+  } catch(e){ console.error(e); }
+}
+async function createCourse() {
+  const name = document.getElementById("c-name").value.trim();
+  if (!name) return alert("Name required");
+  await api("/api/admin/courses", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      name,
+      description: document.getElementById("c-desc").value,
+      kb_module_id: document.getElementById("c-module").value || null,
+      agent_id: document.getElementById("c-agent").value || null,
+      target_audience: document.getElementById("c-audience").value,
+      passing_score: parseFloat(document.getElementById("c-score").value) || 7,
+    })
+  });
+  document.getElementById("c-name").value = "";
+  toggleCourseForm(); loadCourses();
+}
+async function setStatus(id, action){ await api(`/api/admin/courses/${id}/${action}`, {method:"POST"}); loadCourses(); }
+async function dupCourse(id){ await api(`/api/admin/courses/${id}/duplicate`, {method:"POST"}); loadCourses(); }
+async function delCourse(id){ if(!confirm("Delete this course?"))return; await api(`/api/admin/courses/${id}`, {method:"DELETE"}); loadCourses(); }
+
+// ── Evaluations ──────────────────────────────────────────────────────────────
+async function loadEvaluations() {
+  try {
+    const [stats, {leaderboard}] = await Promise.all([
+      api("/api/admin/evaluations/stats"), api("/api/admin/evaluations/leaderboard"),
+    ]);
+    document.getElementById("eval-tiles").innerHTML =
+      tile("Total Evaluations", stats.total_evaluations) +
+      tile("Avg Final Score", stats.avg_final_score) +
+      tile("Hires (≥7.0)", stats.hire_count) +
+      tile("Hire Rate", stats.hire_rate_percent + "%");
+    const body = document.getElementById("leaderboard-body");
+    document.getElementById("leaderboard-empty").style.display = leaderboard.length ? "none" : "block";
+    body.innerHTML = leaderboard.map(r => {
+      const hire = (r.hiring_decision||"").toLowerCase().includes("hire") && !(r.hiring_decision||"").toLowerCase().includes("not");
+      return `<tr>
+        <td>${r.rank}</td>
+        <td class="muted">${esc((r.session_id||'—').slice(0,12))}</td>
+        <td><strong>${r.final_score ?? '—'}</strong></td>
+        <td>${r.product_accuracy ?? '—'}</td><td>${r.discovery ?? '—'}</td>
+        <td>${r.objection_handling ?? '—'}</td><td>${r.empathy ?? '—'}</td>
+        <td>${r.closing_clarity ?? '—'}</td>
+        <td><span class="badge ${hire?'hire':'nohire'}">${esc(r.hiring_decision||'—')}</span></td>
+      </tr>`;
+    }).join("");
+  } catch(e){ console.error(e); }
+}
+
+// ── Token Usage ──────────────────────────────────────────────────────────────
+async function loadUsage() {
+  try {
+    const [summary, {sessions}] = await Promise.all([
+      api("/api/admin/usage"), api("/api/admin/usage/by-session"),
+    ]);
+    document.getElementById("usage-tiles").innerHTML =
+      tile("Tokens Today", fmt(summary.tokens_today)) +
+      tile("Cost Today (USD)", "$" + (summary.cost_today_usd ?? 0)) +
+      tile("Total Tokens", fmt(summary.total_tokens_all_time)) +
+      tile("Total Cost (USD)", "$" + (summary.total_cost_all_time_usd ?? 0)) +
+      tile("Total LLM Calls", fmt(summary.total_calls));
+    const body = document.getElementById("usage-body");
+    document.getElementById("usage-empty").style.display = sessions.length ? "none" : "block";
+    body.innerHTML = sessions.map(s => {
+      const pct = Math.min((s.total_tokens / SESSION_LIMIT) * 100, 100);
+      const over = pct >= WARN_PCT;
+      return `<tr>
+        <td class="muted">${esc((s.session_id||'—').slice(0,16))}</td>
+        <td class="muted">${esc((s.course_id||'—').slice(0,10))}</td>
+        <td>${s.calls}</td>
+        <td>${fmt(s.total_tokens)}</td>
+        <td>$${(s.estimated_cost_usd||0).toFixed(4)}</td>
+        <td>
+          <div class="bar"><span class="${over?'over':''}" style="width:${pct}%"></span></div>
+          <span class="muted" style="font-size:12px">${pct.toFixed(0)}% ${over?'<span class="badge warn">near limit</span>':''}</span>
+        </td>
+      </tr>`;
+    }).join("");
+  } catch(e){ console.error(e); }
+}
+
+// ── AI Agents ────────────────────────────────────────────────────────────────
+let AGENT_OBJECTIONS = [];
+async function loadAgents() {
+  try {
+    const [{agents}, presets] = await Promise.all([
+      api("/api/admin/agents"), api("/api/admin/agents/presets"),
+    ]);
+    AGENT_OBJECTIONS = presets.available_objections || [];
+    const body = document.getElementById("agents-body");
+    document.getElementById("agents-empty").style.display = agents.length ? "none" : "block";
+    body.innerHTML = agents.map(a => {
+      const rounds = [a.tier3_round1_enabled?'R1':null, a.tier3_round2_enabled?'R2':null].filter(Boolean).join(' + ') || '—';
+      return `<tr>
+        <td><strong>${esc(a.name)}</strong><br><span class="muted">${esc(a.description||'')}</span></td>
+        <td><span class="badge ${a.status}">${esc(a.difficulty)}</span></td>
+        <td>${rounds}</td>
+        <td><span class="badge ${a.status}">${a.status}</span></td>
+        <td style="white-space:nowrap">
+          <button class="ghost" onclick='editAgent(${JSON.stringify(a.id)})'>Edit</button>
+          <button class="danger" onclick='delAgent(${JSON.stringify(a.id)})'>Delete</button>
+        </td>
+      </tr>`;
+    }).join("");
+  } catch(e){ console.error(e); }
+}
+function renderObjectionChecks(selected) {
+  selected = selected || [];
+  document.getElementById("a-objections").innerHTML = AGENT_OBJECTIONS.map(o =>
+    `<label style="margin:0;display:flex;align-items:center;gap:6px;font-size:13px">
+      <input type="checkbox" class="obj-chk" value="${o}" ${selected.includes(o)?'checked':''} style="width:auto"> ${o}
+    </label>`).join("");
+}
+function onDifficultyChange() {
+  const custom = document.getElementById("a-difficulty").value === "custom";
+  document.getElementById("a-custom-wrap").style.display = custom ? "block" : "none";
+  document.getElementById("a-preset-wrap").style.display = custom ? "none" : "block";
+}
+function toggleAgentForm(reset=true) {
+  const f = document.getElementById("agent-form");
+  const show = f.style.display === "none";
+  f.style.display = show ? "block" : "none";
+  if (show && reset) resetAgentForm();
+}
+function resetAgentForm() {
+  document.getElementById("agent-form-title").textContent = "Create Agent";
+  ["a-id","a-name","a-desc","a-role","a-company","a-pains","a-base"].forEach(i=>document.getElementById(i).value="");
+  document.getElementById("a-difficulty").value = "medium";
+  document.getElementById("a-status").value = "draft";
+  document.getElementById("a-temp").value = 0.7;
+  document.getElementById("a-maxtok").value = 512;
+  document.getElementById("a-r1").checked = true;
+  document.getElementById("a-r2").checked = true;
+  document.getElementById("a-preview").style.display = "none";
+  onDifficultyChange();
+  renderObjectionChecks(["budget","timing"]);
+}
+async function editAgent(id) {
+  const a = await api("/api/admin/agents/" + id);
+  const f = document.getElementById("agent-form");
+  if (f.style.display === "none") f.style.display = "block";
+  document.getElementById("agent-form-title").textContent = "Edit Agent";
+  document.getElementById("a-id").value = a.id;
+  document.getElementById("a-name").value = a.name || "";
+  document.getElementById("a-desc").value = a.description || "";
+  document.getElementById("a-difficulty").value = a.difficulty || "medium";
+  document.getElementById("a-status").value = a.status || "draft";
+  document.getElementById("a-base").value = a.base_instructions || "";
+  const p = a.prospect_profile || {};
+  document.getElementById("a-role").value = p.role || "";
+  document.getElementById("a-company").value = p.company_size || "";
+  document.getElementById("a-pains").value = (p.pain_points||[]).join(", ");
+  const llm = a.llm_settings || {};
+  document.getElementById("a-temp").value = llm.temperature ?? 0.7;
+  document.getElementById("a-maxtok").value = llm.max_tokens ?? 512;
+  document.getElementById("a-r1").checked = a.tier3_round1_enabled !== false;
+  document.getElementById("a-r2").checked = a.tier3_round2_enabled !== false;
+  document.getElementById("a-preview").style.display = "none";
+  onDifficultyChange();
+  renderObjectionChecks(p.objections || ["budget","timing"]);
+}
+function collectAgent() {
+  const selectedObj = [...document.querySelectorAll(".obj-chk:checked")].map(c=>c.value);
+  const pains = document.getElementById("a-pains").value.split(",").map(s=>s.trim()).filter(Boolean);
+  return {
+    name: document.getElementById("a-name").value.trim(),
+    description: document.getElementById("a-desc").value,
+    difficulty: document.getElementById("a-difficulty").value,
+    base_instructions: document.getElementById("a-base").value,
+    status: document.getElementById("a-status").value,
+    prospect_profile: {
+      role: document.getElementById("a-role").value,
+      company_size: document.getElementById("a-company").value,
+      pain_points: pains,
+      objections: selectedObj,
+    },
+    llm_settings: {
+      temperature: parseFloat(document.getElementById("a-temp").value) || 0.7,
+      max_tokens: parseInt(document.getElementById("a-maxtok").value) || 512,
+    },
+    tier3_round1_enabled: document.getElementById("a-r1").checked,
+    tier3_round2_enabled: document.getElementById("a-r2").checked,
+  };
+}
+async function saveAgent() {
+  const data = collectAgent();
+  if (!data.name) return alert("Agent name required");
+  const id = document.getElementById("a-id").value;
+  if (id) {
+    await api("/api/admin/agents/" + id, {method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(data)});
+  } else {
+    await api("/api/admin/agents", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(data)});
+  }
+  toggleAgentForm(false);
+  document.getElementById("agent-form").style.display = "none";
+  loadAgents();
+}
+async function delAgent(id) {
+  if (!confirm("Delete this agent?")) return;
+  await api("/api/admin/agents/" + id, {method:"DELETE"});
+  loadAgents();
+}
+async function previewAgent() {
+  const id = document.getElementById("a-id").value;
+  if (!id) return alert("Save the agent first to preview its compiled prompt.");
+  const res = await api("/api/admin/agents/" + id + "/preview", {method:"POST"});
+  const pre = document.getElementById("a-preview");
+  pre.textContent = res.compiled_instructions;
+  pre.style.display = "block";
+}
+
+// ── Materials / Knowledge Base ───────────────────────────────────────────────
+function toggleModuleForm(){
+  const f = document.getElementById("module-form");
+  f.style.display = f.style.display === "none" ? "block" : "none";
+}
+async function loadMaterials(){
+  try{
+    const {modules} = await api("/api/kb/modules");
+    const sel = document.getElementById("mat-module");
+    const prev = sel.value;
+    sel.innerHTML = `<option value="">— select a module —</option>` +
+      modules.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join("");
+    if (prev) sel.value = prev;
+    loadDocs();
+  }catch(e){ console.error(e); }
+}
+async function createModule(){
+  const name = document.getElementById("m-name").value.trim();
+  if(!name) return alert("Module name required");
+  await api("/api/kb/modules", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({name, description: document.getElementById("m-desc").value})});
+  document.getElementById("m-name").value=""; document.getElementById("m-desc").value="";
+  toggleModuleForm(); loadMaterials();
+}
+async function loadDocs(){
+  const mid = document.getElementById("mat-module").value;
+  const zone = document.getElementById("upload-zone");
+  const card = document.getElementById("docs-card");
+  if(!mid){ zone.style.display="none"; card.style.display="none"; return; }
+  zone.style.display="block"; card.style.display="block";
+  try{
+    const mod = await api("/api/kb/modules/" + mid);
+    const docs = mod.documents || [];
+    const body = document.getElementById("docs-body");
+    document.getElementById("docs-empty").style.display = docs.length ? "none" : "block";
+    body.innerHTML = docs.map(d=>{
+      const st = (d.status||"").toLowerCase();
+      const cls = st==="indexed"?"active":(st==="failed"?"nohire":"draft");
+      return `<tr>
+        <td>${esc(d.filename)}</td>
+        <td><span class="badge ${cls}">${esc(d.status||'—')}</span></td>
+        <td>${d.chunk_count ?? '—'}</td>
+        <td class="muted">${(d.created_at||'').slice(0,10)}</td>
+        <td><button class="danger" onclick='delDoc(${JSON.stringify(mid)},${JSON.stringify(d.id)})'>Delete</button></td>
+      </tr>`;
+    }).join("");
+  }catch(e){ console.error(e); }
+}
+async function uploadDoc(){
+  const mid = document.getElementById("mat-module").value;
+  const fileInput = document.getElementById("mat-file");
+  const status = document.getElementById("upload-status");
+  if(!mid) return alert("Select a module first");
+  if(!fileInput.files.length){ status.textContent="Choose a file first."; return; }
+  const fd = new FormData(); fd.append("file", fileInput.files[0]);
+  const btn = document.getElementById("mat-upload");
+  btn.disabled = true; status.textContent = "Uploading & indexing… (large PDFs may take a moment)";
+  try{
+    const res = await fetch(API + "/api/kb/modules/" + mid + "/documents", {method:"POST", body: fd});
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.detail || "Upload failed");
+    status.textContent = "✅ " + (data.message || "Indexed.");
+    fileInput.value=""; loadDocs();
+  }catch(e){ status.textContent = "⚠️ " + e.message; }
+  btn.disabled = false;
+}
+async function delDoc(mid, did){
+  if(!confirm("Delete this document and its vectors?")) return;
+  await api(`/api/kb/modules/${mid}/documents/${did}`, {method:"DELETE"});
+  loadDocs();
+}
+
+// ── Approvals ────────────────────────────────────────────────────────────────
+let COURSE_NAMES = {};
+async function loadApprovals(){
+  try{
+    // build course id→name map for display
+    if(Object.keys(COURSE_NAMES).length === 0){
+      const {courses} = await api("/api/admin/courses");
+      courses.forEach(c=>COURSE_NAMES[c.id]=c.name);
+    }
+    const {pending} = await api("/api/admin/approvals");
+    const body = document.getElementById("approvals-body");
+    document.getElementById("approvals-empty").style.display = pending.length ? "none" : "block";
+    body.innerHTML = pending.map(p=>{
+      const cname = COURSE_NAMES[p.course_id] || p.course_id;
+      return `<tr>
+        <td><strong>${esc(p.sales_rep_id)}</strong></td>
+        <td>${esc(cname)}</td>
+        <td class="muted">${(p.updated_at||'').slice(0,16).replace('T',' ')}</td>
+        <td style="white-space:nowrap">
+          <button onclick='decide(${JSON.stringify(p.sales_rep_id)},${JSON.stringify(p.course_id)},"approved")'>Approve</button>
+          <button class="danger" onclick='decide(${JSON.stringify(p.sales_rep_id)},${JSON.stringify(p.course_id)},"rejected")'>Reject</button>
+        </td>
+      </tr>`;
+    }).join("");
+  }catch(e){ console.error(e); }
+}
+async function decide(repId, courseId, decision){
+  let note = "";
+  if(decision === "rejected"){ note = prompt("Reason for sending back (optional):") || ""; }
+  try{
+    await api("/api/admin/approvals/decide", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({sales_rep_id:repId, course_id:courseId, decision, note})});
+    loadApprovals();
+  }catch(e){ alert(e.message); }
+}
+
+function loadView(v) {
+  if (v==="dashboard") loadDashboard();
+  else if (v==="courses") loadCourses();
+  else if (v==="materials") loadMaterials();
+  else if (v==="agents") loadAgents();
+  else if (v==="approvals") loadApprovals();
+  else if (v==="evaluations") loadEvaluations();
+  else if (v==="usage") loadUsage();
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+(async () => {
+  try { await api("/api/health"); document.getElementById("health").textContent = "● connected"; }
+  catch { document.getElementById("health").textContent = "● offline"; }
+  loadDashboard();
+})();
+</script>
+</body>
+</html>

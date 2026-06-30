@@ -1,1160 +1,623 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <title>Sales Trainer Agent</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <style>
-    :root {
-      --bg: #0b101e;
-      --bg-panel: rgba(22, 28, 45, 0.6);
-      --bg-panel-hover: rgba(32, 40, 60, 0.8);
-      --border: rgba(255, 255, 255, 0.1);
-      --text: #f0f4f8;
-      --text-muted: #94a3b8;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
-      --accent-glow: rgba(59, 130, 246, 0.4);
-      --danger: #ef4444;
-      --danger-hover: #dc2626;
-      --success: #10b981;
-      --success-glow: rgba(16, 185, 129, 0.3);
-      --font-main: 'Inter', sans-serif;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: var(--font-main);
-      background-color: var(--bg);
-      background-image:
-        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
-      background-attachment: fixed;
-      color: var(--text);
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-      color-scheme: dark;
-    }
-
-    /* Sidebar */
-    .sidebar {
-      width: 280px;
-      background: var(--bg-panel);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      padding: 24px 16px;
-      z-index: 10;
-    }
-
-    .logo {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      margin-bottom: 40px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: #fff;
-      text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-    }
-
-    .logo-icon {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, var(--accent), #8b5cf6);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 0 15px var(--accent-glow);
-    }
-
-    .nav-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      text-align: left;
-      padding: 12px 16px;
-      font-size: 14px;
-      font-weight: 500;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      margin-bottom: 8px;
-      font-family: var(--font-main);
-    }
-
-    .nav-btn:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-    }
-
-    .nav-btn.active {
-      background: var(--accent);
-      color: #fff;
-      box-shadow: 0 4px 12px var(--accent-glow);
-    }
-
-    .sidebar-footer {
-      margin-top: auto;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-    }
-
-    .field {
-      margin-bottom: 16px;
-    }
-
-    .field label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .field input,
-    .field select,
-    .field textarea {
-      width: 100%;
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 8px;
-      font-family: var(--font-main);
-      font-size: 14px;
-      transition: border 0.2s, box-shadow 0.2s;
-    }
-
-    .field input:focus,
-    .field select:focus,
-    .field textarea:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
-
-    .field textarea {
-      resize: vertical;
-      min-height: 80px;
-    }
-
-    /* Dropdown Options */
-    option {
-      background-color: #0b101e;
-      color: #f0f4f8;
-    }
-
-    /* Main Content */
-    .main-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 40px;
-      position: relative;
-    }
-
-    .view-section {
-      display: none;
-    }
-
-    .view-section.active {
-      display: block;
-      animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(15px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    h2 {
-      font-size: 28px;
-      font-weight: 600;
-      margin: 0 0 8px 0;
-      letter-spacing: -0.5px;
-    }
-
-    .subtitle {
-      color: var(--text-muted);
-      margin-bottom: 32px;
-      font-size: 15px;
-    }
-
-    /* Glass Panels */
-    .panel {
-      background: var(--bg-panel);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .panel:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
-    }
-
-    /* Buttons */
-    .btn {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: var(--font-main);
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn:hover {
-      background: var(--accent-hover);
-      box-shadow: 0 4px 12px var(--accent-glow);
-      transform: translateY(-1px);
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .btn.secondary {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border);
-    }
-
-    .btn.secondary:hover {
-      background: rgba(255, 255, 255, 0.1);
-      box-shadow: none;
-    }
-
-    .btn.danger {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--danger);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-
-    .btn.danger:hover {
-      background: var(--danger);
-      color: #fff;
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-    }
-
-    .btn.success {
-      background: var(--success);
-      color: #fff;
-      animation: pulse 2s infinite;
-    }
-
-    .btn.success:hover {
-      box-shadow: 0 4px 15px var(--success-glow);
-      animation: none;
-      transform: scale(1.02);
-    }
-
-    @keyframes pulse {
-      0% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
-      }
-
-      70% {
-        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-      }
-
-      100% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-      }
-    }
-
-    .row {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-
-    /* Lists */
-    .list-item {
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 12px;
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      animation: slideInLeft 0.4s ease forwards;
-      opacity: 0;
-    }
-
-    @keyframes slideInLeft {
-      from {
-        opacity: 0;
-        transform: translateX(-10px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    .list-item:hover {
-      transform: translateX(6px) scale(1.01);
-      border-color: rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.05);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .list-item h3 {
-      margin: 0 0 4px;
-      font-size: 15px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .list-item p {
-      margin: 0;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-
-    .badge {
-      background: rgba(59, 130, 246, 0.15);
-      color: #60a5fa;
-      padding: 2px 8px;
-      border-radius: 99px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    /* Score Grid */
-    .score-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .score-card {
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      text-align: center;
-      transition: border-color 0.2s;
-    }
-
-    .score-card.final {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
-      border-color: rgba(139, 92, 246, 0.3);
-    }
-
-    .score-card span {
-      display: block;
-      color: var(--text-muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-
-    .score-card strong {
-      font-size: 28px;
-      font-weight: 700;
-      background: linear-gradient(to right, #fff, #94a3b8);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .hiring-decision {
-      padding: 16px;
-      border-radius: 12px;
-      text-align: center;
-      font-size: 20px;
-      font-weight: 700;
-      margin-top: 16px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .hire-yes {
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #34d399;
-      box-shadow: 0 0 20px var(--success-glow);
-    }
-
-    .hire-no {
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #f87171;
-    }
-
-    /* Output/Feedback Boxes */
-    .output-box {
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      font-family: monospace;
-      font-size: 13px;
-      color: #a7f3d0;
-      white-space: pre-wrap;
-      overflow-x: auto;
-    }
-
-    .text-response-box {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      font-size: 14px;
-      line-height: 1.6;
-      color: var(--text);
-      white-space: pre-wrap;
-      min-height: 60px;
-    }
-
-    /* LiveKit Widget */
-    .lk-widget-container {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      z-index: 1000;
-      width: 340px;
-      background: var(--bg-panel);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-radius: 16px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-      overflow: hidden;
-      display: none;
-      border: 1px solid var(--border);
-      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px) scale(0.95);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-
-    .lk-widget-header {
-      padding: 16px;
-      background: rgba(0, 0, 0, 0.2);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 600;
-    }
-
-    .lk-widget-body {
-      padding: 24px;
-      text-align: center;
-    }
-
-    .close-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 18px;
-    }
-
-    .close-btn:hover {
-      color: #fff;
-    }
-
-    /* Toast Notification */
-    #toast {
-      position: fixed;
-      top: 24px;
-      right: 24px;
-      background: var(--bg-panel);
-      backdrop-filter: blur(16px);
-      border: 1px solid var(--border);
-      padding: 16px 24px;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-      z-index: 9999;
-      transform: translateX(120%);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    #toast.show {
-      transform: translateX(0);
-    }
-
-    .toast-error {
-      border-left: 4px solid var(--danger) !important;
-    }
-
-    .toast-success {
-      border-left: 4px solid var(--success) !important;
-    }
-
-    /* Loading Spinner */
-    .spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      border-top-color: #fff;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sales Trainer — Learner Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root{
+    --bg:#0b101e; --panel:#161c2d; --panel2:#1f2740; --line:#2a3450;
+    --text:#eef2f8; --muted:#94a3b8;
+    --accent:#3b82f6; --accent2:#8b5cf6; --green:#10b981; --amber:#f59e0b; --red:#ef4444;
+    --r:14px; --font:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text);
+    background-image:radial-gradient(at 0% 0%,rgba(59,130,246,.12),transparent 45%),
+      radial-gradient(at 100% 100%,rgba(139,92,246,.12),transparent 45%);
+    background-attachment:fixed;min-height:100vh}
+  /* layout */
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:270px;background:rgba(18,24,40,.7);backdrop-filter:blur(14px);
+    border-right:1px solid var(--line);padding:24px 16px;display:flex;flex-direction:column;
+    position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:18px;margin-bottom:28px}
+  .brand .mark{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));font-weight:800}
+  .nav{display:flex;flex-direction:column;gap:6px}
+  .nav button{display:flex;align-items:center;gap:12px;text-align:left;background:transparent;border:none;
+    color:var(--muted);padding:12px 14px;border-radius:10px;cursor:pointer;font:inherit;font-size:14px;font-weight:500}
+  .nav button:hover{background:rgba(255,255,255,.05);color:var(--text)}
+  .nav button.active{background:var(--accent);color:#fff}
+  .nav .step{width:22px;height:22px;border-radius:50%;background:var(--panel2);display:flex;
+    align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .nav button.active .step{background:rgba(255,255,255,.25)}
+  .nav .done .step{background:var(--green);color:#04110b}
+  .nav button.locked{opacity:.45;cursor:not-allowed}
+  .nav button.locked:hover{background:transparent;color:var(--muted)}
+  .nav .lock-ic{margin-left:auto;font-size:13px}
+  .locked-msg{background:var(--panel2);border:1px dashed var(--line);border-radius:12px;
+    padding:30px;text-align:center;color:var(--muted)}
+  .locked-msg .big{font-size:40px;margin-bottom:10px}
+  .complete-row{display:flex;align-items:center;gap:12px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:16px}
+  .complete-row.done{border-color:var(--green)}
+  .side-foot{margin-top:auto;padding-top:18px;border-top:1px solid var(--line);font-size:13px}
+  .main{flex:1;padding:36px 44px;max-width:1080px;margin:0 auto;width:100%}
+  /* headings */
+  h1{font-size:24px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 24px;line-height:1.5}
+  /* cards */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:24px;margin-bottom:20px}
+  .card h3{margin:0 0 6px;font-size:16px}
+  .card .hint{color:var(--muted);font-size:13px;margin:0 0 16px;line-height:1.5}
+  .view{display:none;animation:fade .25s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  /* form controls */
+  label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px;font-weight:500}
+  input,textarea,select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:11px 13px;font:inherit;font-size:14px}
+  textarea{resize:vertical;min-height:90px}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#fff;
+    border:none;border-radius:10px;padding:12px 20px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+  .btn:hover{background:#2f6fd6}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.green{background:var(--green)} .btn.green:hover{background:#0e9d70}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .btn.block{width:100%}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:200px}
+  /* step banner */
+  .stepbar{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--muted)}
+  .stepbar b{color:var(--text)}
+  .pill{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.green{background:rgba(16,185,129,.18);color:var(--green)}
+  .pill.amber{background:rgba(245,158,11,.18);color:var(--amber)}
+  /* output */
+  .output{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:18px;
+    line-height:1.65;font-size:14px;max-height:520px;overflow:auto}
+  .output h1,.output h2,.output h3{margin-top:18px}
+  .output code{background:var(--panel2);padding:2px 6px;border-radius:5px}
+  /* chat */
+  .chat-log{display:flex;flex-direction:column;gap:12px;max-height:440px;overflow:auto;padding:4px;margin-bottom:16px}
+  .bubble{padding:12px 16px;border-radius:14px;font-size:14px;line-height:1.55;max-width:85%}
+  .bubble.me{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .bubble.ai{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .bubble.ai h1,.bubble.ai h2,.bubble.ai h3{margin:8px 0;font-size:15px}
+  /* score */
+  .banner{padding:20px;border-radius:12px;text-align:center;font-size:22px;font-weight:700;margin-bottom:20px}
+  .banner.hire{background:rgba(16,185,129,.15);color:var(--green);border:1px solid var(--green)}
+  .banner.no{background:rgba(239,68,68,.15);color:var(--red);border:1px solid var(--red)}
+  .scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+  .score{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}
+  .score .n{font-size:30px;font-weight:700}
+  .score .l{font-size:12px;color:var(--muted);margin-top:4px}
+  .bar{height:7px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:10px}
+  .bar>span{display:block;height:100%;background:var(--accent)}
+  .feedback{background:var(--bg);border-left:3px solid var(--accent);border-radius:8px;padding:14px 16px;
+    margin-top:14px;font-size:14px;line-height:1.6}
+  .feedback h4{margin:0 0 6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  /* misc */
+  .muted{color:var(--muted)} .center{text-align:center}
+  .empty{color:var(--muted);text-align:center;padding:20px}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:14px 18px;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.4);
+    transform:translateY(80px);opacity:0;transition:.3s;z-index:99}
+  .toast.show{transform:none;opacity:1}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;
+    border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(max-width:860px){.shell{flex-direction:column}.sidebar{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap}.nav{flex-direction:row;flex-wrap:wrap}.main{padding:24px}}
+  /* page loader */
+  .page-loader{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:16px;z-index:999;transition:opacity .4s}
+  .page-loader.hide{opacity:0;pointer-events:none}
+  .page-loader .ring{width:40px;height:40px;border:3px solid var(--line);border-top-color:var(--accent);
+    border-radius:50%;animation:spin .8s linear infinite}
+  /* toast variants */
+  .toast.error{border-color:var(--red);color:var(--red)}
+  .toast.success{border-color:var(--green);color:var(--green)}
+</style>
 </head>
-
 <body>
-
-  <!-- Toast Notification -->
-  <div id="toast">
-    <div id="toastMessage">Message</div>
-  </div>
-
-  <!-- Sidebar -->
+<div class="page-loader" id="pageLoader">
+  <div class="ring"></div>
+  <span class="muted">Loading Sales Trainer…</span>
+</div>
+<div class="shell">
+  <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="logo">
-      <div class="logo-icon">X</div>
-      Sales Trainer Agent
-    </div>
+    <div class="brand"><div class="mark">S</div> Sales Trainer</div>
 
-    <div id="stopwatchDisplay" style="text-align:center; font-size: 36px; font-weight: 700; color: var(--accent); margin-bottom: 24px; text-shadow: 0 0 15px var(--accent-glow); display: none;">02:00</div>
-    <p id="activeModuleDisplay" style="text-align:center; font-size: 14px; font-weight: 600; color: var(--success); margin-bottom: 24px; display: none;">Module: Active</p>
+    <label style="margin-bottom:6px">Select Course</label>
+    <select id="courseSelect" onchange="onCourseChange()" style="margin-bottom:8px"></select>
+    <div id="courseHint" class="muted" style="font-size:12px;margin-bottom:14px"></div>
 
-    <button class="nav-btn active" data-target="view-learn">Learning Hub</button>
-    <button class="nav-btn" data-target="view-chat">AI Chat Assistant</button>
-    <button class="nav-btn" data-target="view-mock">Voice Mock Call</button>
-    <button class="nav-btn" data-target="view-eval">Evaluation Dashboard</button>
+    <label style="margin-bottom:6px">Your Rep ID</label>
+    <input id="globalRepId" value="rep-001" onchange="loadProgress()" style="margin-bottom:18px" />
 
-    <div class="sidebar-footer">
-      <div class="field" style="margin-top: 16px;">
-        <label for="apiBase">API Base (leave blank for local)</label>
-        <input id="apiBase" value="" placeholder="/" />
-      </div>
+    <nav class="nav" id="nav">
+      <button class="active" data-view="learn"><span class="step">1</span> Learn the Product</button>
+      <button data-view="deepdive"><span class="step">2</span> Deep-Dive Coaching</button>
+      <button data-view="practice"><span class="step">3</span> Voice Mock Call</button>
+      <button data-view="evaluate"><span class="step">4</span> Get Evaluated</button>
+    </nav>
+
+    <div class="side-foot">
+      <div id="health" class="muted">connecting…</div>
+      <div style="margin-top:8px"><a href="/admin/console" style="color:var(--accent);text-decoration:none">Admin Console →</a></div>
     </div>
   </aside>
 
-  <!-- Main Content -->
-  <main class="main-content">
-    <!-- LEARNING HUB VIEW -->
-    <section id="view-learn" class="view-section active">
-      <h2>Learning Hub & Curriculum</h2>
-      <p class="subtitle">Generate a comprehensive, structured learning guide based on the documents uploaded to the
-        active module.</p>
+  <!-- MAIN -->
+  <main class="main">
 
-      <div class="panel">
-        <button class="btn success" id="generateCurriculumBtn"
-          style="width: 100%; justify-content:center; padding: 14px; font-size:15px;">
-          Generate Curriculum from Documents
-        </button>
+    <!-- STEP 1: LEARN -->
+    <section class="view active" id="view-learn">
+      <h1>Step 1 — Learn the Product</h1>
+      <p class="sub">Start here. Generate a study guide built from your manager's uploaded documents, then ask the AI tutor anything you don't understand.</p>
+
+      <div class="card">
+        <h3>📘 Your Study Guide</h3>
+        <p class="hint">The AI reads all training documents in this module and writes a structured guide: value proposition, features, target customers, common objections, and key questions to ask.</p>
+        <button class="btn green" id="genCurriculum">Generate Study Guide</button>
+        <div id="curriculumBox" class="output" style="margin-top:18px;display:none"></div>
       </div>
 
-      <div class="panel" id="curriculumPanel" style="display: none;">
-        <h3>Module Curriculum</h3>
-        <div id="curriculumOutput" class="output-box" style="margin-top: 16px; font-size: 15px; line-height: 1.6;">
-        </div>
-      </div>
-    </section>
-
-    <!-- CHAT ASSISTANT VIEW -->
-    <section id="view-chat" class="view-section">
-      <h2>Sales Chat Assistant</h2>
-      <p class="subtitle">Test the RAG pipeline. Ask questions the sales rep might ask during a live call.</p>
-
-      <div class="panel">
-        <div class="field">
-          <label>Sales Rep Question</label>
-          <textarea id="chatMessage"
-            placeholder="How do I handle the pricing objection for the Enterprise tier?"></textarea>
-        </div>
-        <button class="btn" id="sendChat">Send Message</button>
-
-        <div class="field" style="margin-top: 24px;">
-          <label>AI Assistant Response</label>
-          <div id="chatResponseArea" class="text-response-box">AI response will appear here based on the selected Active
-            Module.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- VOICE MOCK CALL VIEW -->
-    <section id="view-mock" class="view-section">
-      <h2>Voice Mock Call Terminal</h2>
-      <p class="subtitle">Dispatch a LiveKit voice agent to roleplay the prospect.</p>
-
-      <div class="panel">
+      <div class="card">
+        <h3>💬 Ask the Tutor (Tier 1)</h3>
+        <p class="hint">A friendly trainer that answers only from your training material. Great for quick questions while you study.</p>
+        <div class="chat-log" id="t1log"><div class="empty">Ask your first question to begin.</div></div>
         <div class="row">
-          <div class="field" style="flex:1;">
-            <label>Sales Rep ID</label>
-            <input id="salesRepId" value="rep-001" />
-          </div>
+          <textarea id="t1input" placeholder="e.g. What problem does this product solve?" style="min-height:60px"></textarea>
         </div>
-        <div class="row">
-          <button class="btn success" id="startMockCall" style="padding: 14px 24px; font-size: 16px;">
-            Start Voice Mock Call
-          </button>
-          <button class="btn secondary" id="openLiveKit" style="padding: 14px 24px; font-size: 16px;">
-            Launch Playground Tab
-          </button>
+        <button class="btn" id="t1send" style="margin-top:12px">Send</button>
+      </div>
+
+      <div class="complete-row" id="done-tier1">
+        <div style="flex:1">
+          <b>Finished learning?</b><br>
+          <span class="muted" style="font-size:13px">Mark Step 1 complete to unlock Step 2 — Deep-Dive Coaching.</span>
         </div>
-        <div class="field" style="margin-top: 24px;">
-          <label>Session Details</label>
-          <div id="sessionInfo" class="output-box">No session active. Click Start to dispatch the worker.</div>
-        </div>
+        <button class="btn green" onclick="completeStep('tier1')">Mark Step 1 Complete</button>
       </div>
     </section>
 
-    <!-- EVALUATION DASHBOARD VIEW -->
-    <section id="view-eval" class="view-section">
-      <h2>Evaluation & Hiring Dashboard</h2>
-      <p class="subtitle">Grade the sales rep's performance based on their voice and text interactions.</p>
+    <!-- STEP 2: DEEP DIVE -->
+    <section class="view" id="view-deepdive">
+      <h1>Step 2 — Deep-Dive Coaching</h1>
+      <p class="sub">When you're comfortable with the basics, get a complete walkthrough plus real sales scenarios. The coach teaches proactively, then you can ask follow-ups.</p>
+
+      <div class="locked-msg" id="lock-deepdive" style="display:none">
+        <div class="big">🔒</div>
+        <b>Step 2 is locked</b>
+        <p>Complete <b>Step 1 — Learn the Product</b> first to unlock this step.</p>
+      </div>
+
+      <div id="body-deepdive">
+      <div class="card">
+        <h3>🎓 Start the Deep-Dive (Tier 2)</h3>
+        <p class="hint">The coach gives you a full structured walkthrough — features &amp; why they matter, real prospect scenarios with exact wording, a cheat sheet, then invites your questions.</p>
+        <button class="btn green" id="startDeepDive">Start Deep-Dive Session</button>
+        <div class="chat-log" id="t2log" style="margin-top:18px"></div>
+        <div class="row" id="t2inputRow" style="display:none">
+          <textarea id="t2input" placeholder="Ask a follow-up — e.g. How do I handle the price objection?" style="min-height:60px"></textarea>
+        </div>
+        <button class="btn" id="t2send" style="margin-top:12px;display:none">Send Follow-up</button>
+      </div>
+
+      <div class="complete-row" id="done-tier2">
+        <div style="flex:1">
+          <b>Done with coaching?</b><br>
+          <span class="muted" style="font-size:13px">Mark Step 2 complete to unlock Step 3 — Voice Mock Call.</span>
+        </div>
+        <button class="btn green" onclick="completeStep('tier2')">Mark Step 2 Complete</button>
+      </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: PRACTICE -->
+    <section class="view" id="view-practice">
+      <h1>Step 3 — Voice Mock Call</h1>
+      <p class="sub">Practice a live voice call. Round 1 lets you hear a model call; Round 2 is your turn to sell while the AI plays a realistic prospect.</p>
+
+      <div class="locked-msg" id="lock-practice" style="display:none">
+        <div class="big">🔒</div>
+        <b>Step 3 is locked</b>
+        <p>Complete <b>Step 2 — Deep-Dive Coaching</b> first to unlock the voice mock call.</p>
+      </div>
+
+      <div id="body-practice">
+      <div class="card">
+        <label>Your Sales Rep ID</label>
+        <input id="repId" value="rep-001" style="max-width:260px" />
+      </div>
 
       <div class="row">
-        <!-- Text Test input -->
-        <div class="panel" style="flex: 1; min-width: 300px;">
-          <h3>AI Chat Assistant Transcript</h3>
-          <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">This will automatically populate with
-            your conversation from the Chat Assistant tab.</p>
-          <div class="field">
-            <textarea id="chatTranscript" placeholder="Chat history will appear here..." readonly
-              style="min-height: 180px;"></textarea>
-          </div>
+        <div class="card">
+          <h3>🎧 Round 1 — Watch a Demo</h3>
+          <p class="hint">The AI acts as an expert counsellor and demonstrates a perfect call. Just listen and learn the flow.</p>
+          <button class="btn" data-round="1" onclick="startCall(1)">Start Demo Call</button>
         </div>
-
-        <!-- Evaluation input -->
-        <div class="panel" style="flex: 1; min-width: 300px;">
-          <h3>Submit for Final Evaluation</h3>
-          <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Paste the Voice Mock Call transcript
-            below. The AI will evaluate both the Voice and Chat transcripts.</p>
-          <div class="field">
-            <textarea id="mockTranscript" placeholder="Agent: Hello.&#10;Rep: Hi! I'm calling from AcceleratorX..."
-              style="min-height: 120px;"></textarea>
-          </div>
-          <button class="btn success" id="evaluateMock"
-            style="width: 100%; justify-content:center; padding: 14px; font-size:15px;">
-            Generate Final Score & Hiring Decision
-          </button>
+        <div class="card">
+          <h3>🎤 Round 2 — Your Turn</h3>
+          <p class="hint">You are the salesperson. The AI is a cautious prospect who raises objections. This call is scored.</p>
+          <button class="btn green" data-round="2" onclick="startCall(2)">Start Practice Call</button>
         </div>
       </div>
 
-      <!-- Results Grid -->
-      <div id="scoreResults" style="display: none;">
-        <h3>Evaluation Results</h3>
-        <div id="hiringBanner" class="hiring-decision"></div>
-        <div class="score-grid" id="scoreGrid" style="margin-top:24px;"></div>
-        <div class="panel">
-          <label
-            style="font-size:12px; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px; display:block;">Feedback</label>
-          <div id="feedbackText" class="text-response-box"></div>
-        </div>
+      <div class="card" id="callInfo" style="display:none">
+        <h3>📞 Call Session</h3>
+        <div id="callDetails" class="output" style="margin-bottom:16px"></div>
+        <button class="btn green" id="joinCall">Join the Call (open playground)</button>
+        <p class="hint" style="margin-top:14px">After the call ends, mark this step complete to unlock evaluation.</p>
       </div>
 
-      <div class="panel">
-        <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="margin:0;">Historical Evaluations</h3>
-          <button class="btn secondary" id="refreshHistory">Refresh History</button>
+      <div class="complete-row" id="done-tier3">
+        <div style="flex:1">
+          <b>Finished your practice call?</b><br>
+          <span class="muted" style="font-size:13px">Mark Step 3 complete to unlock Step 4 — Get Evaluated.</span>
         </div>
-        <div id="historyList"></div>
+        <button class="btn green" onclick="completeStep('tier3')">Mark Step 3 Complete</button>
+      </div>
+      </div>
+    </section>
+
+    <!-- STEP 4: EVALUATE -->
+    <section class="view" id="view-evaluate">
+      <h1>Step 4 — Get Evaluated</h1>
+      <p class="sub">Submit your Round 2 call transcript. The AI scores you on 5 skills, then an admin reviews and approves your result.</p>
+
+      <div class="locked-msg" id="lock-evaluate" style="display:none">
+        <div class="big">🔒</div>
+        <b>Step 4 is locked</b>
+        <p>Complete <b>Step 3 — Voice Mock Call</b> first to unlock evaluation.</p>
+      </div>
+
+      <div id="approval-banner" style="display:none"></div>
+
+      <div id="body-evaluate">
+      <div class="card">
+        <h3>📝 Voice Call Transcript</h3>
+        <p class="hint">Your most recent mock call transcript is loaded automatically. You can also paste manually.</p>
+        <button class="btn ghost" id="pullTranscript" style="margin-bottom:12px">↻ Pull Latest Transcript</button>
+        <label>Voice Call Transcript</label>
+        <textarea id="evalTranscript" placeholder="Transcript will be auto-loaded from your last call…" style="min-height:160px"></textarea>
+        <button class="btn green block" id="runEval" style="margin-top:16px">Generate Score &amp; Submit for Approval</button>
+      </div>
+
+      <div id="evalResults" style="display:none">
+        <div class="banner" id="evalBanner"></div>
+        <div class="scores" id="evalScores"></div>
+        <div class="card" style="margin-top:20px" id="evalFeedback"></div>
+      </div>
       </div>
     </section>
 
   </main>
+</div>
 
-  <script>
-    // Elements
-    const els = {
-      apiBase: document.getElementById('apiBase'),
-      activeModuleDisplay: document.getElementById('activeModuleDisplay'),
-      chatLog: document.getElementById('chatLog'),
-      chatInput: document.getElementById('chatInput'),
-      salesRepId: document.getElementById('salesRepId'),
-      chatTranscript: document.getElementById('chatTranscript'),
-      mockTranscript: document.getElementById('mockTranscript'),
-      historyList: document.getElementById('historyList'),
-      scoreGrid: document.getElementById('scoreGrid'),
-      scoreResults: document.getElementById('scoreResults'),
-      hiringBanner: document.getElementById('hiringBanner'),
-      feedbackText: document.getElementById('feedbackText'),
-      stopwatchDisplay: document.getElementById('stopwatchDisplay'),
-      toast: document.getElementById('toast'),
-      toastMessage: document.getElementById('toastMessage')
-    };
+<div class="toast" id="toast"></div>
 
-    const state = {
-      activeModuleId: null,
-      timerMinutes: 2,
-      session: null,
-      history: [],
-      timerInterval: null,
-      timeLeft: 0,
-      chatTranscript: ""
-    };
+<script>
+let API = "";
+let MODULE_ID = null;
+const SID = "sess-" + Math.random().toString(36).slice(2, 10); // chat session id
 
-    const scoreLabels = {
-      'product_accuracy': 'Product Accuracy',
-      'discovery': 'Discovery',
-      'objection_handling': 'Objection Handling',
-      'empathy': 'Empathy',
-      'closing_clarity': 'Closing Clarity',
-      'voice_score': 'Voice Score',
-      'text_score': 'Text Score'
-    };
+const $ = id => document.getElementById(id);
+const esc = s => (s ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const md = t => { try { return marked.parse(t || ""); } catch { return esc(t); } };
 
-    // Navigation
-    function setupEventListeners() {
-      // Navigation
-      document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-          document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-          e.target.classList.add('active');
-          const targetView = document.getElementById(e.target.dataset.target);
-          targetView.classList.add('active');
+function toast(msg, type){
+  const t=$("toast");
+  t.textContent=msg;
+  t.className="toast show" + (type?" "+type:"");
+  setTimeout(()=>t.classList.remove("show"),3000);
+}
 
-          if (e.target.dataset.target === 'view-eval') {
-            els.chatTranscript.value = state.chatTranscript || "No chat interaction recorded.";
-          }
-        });
-      });
+// Activity tracking for step completion enforcement
+let activity = { t1_msgs: 0, t2_started: false, call_started: false };
+
+async function api(path, opts){
+  const res = await fetch(API + path, opts);
+  if(!res.ok){ const e = await res.json().catch(()=>({})); throw new Error(e.detail || ("Error "+res.status)); }
+  return res.json();
+}
+function busy(btn, on, label){
+  if(on){ btn.dataset.txt = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> ' + (label||'Working…'); }
+  else { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+const VIEW_TO_STEP = { learn:"tier1", deepdive:"tier2", practice:"tier3", evaluate:"evaluation" };
+let PROGRESS = null;
+
+document.querySelectorAll("#nav button").forEach(b => b.onclick = () => {
+  if(b.classList.contains("locked")){ toast("Complete the previous step first 🔒"); return; }
+  document.querySelectorAll("#nav button").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  $("view-" + b.dataset.view).classList.add("active");
+});
+function markDone(view){ const b=document.querySelector(`#nav button[data-view="${view}"]`); if(b) b.classList.add("done"); }
+
+// ── Courses ──────────────────────────────────────────────────────────────────
+let COURSES = [];
+async function loadCourses(){
+  try{
+    const {courses} = await api("/api/admin/courses");
+    COURSES = courses.filter(c => c.status === "active");
+    if(!COURSES.length) COURSES = courses;
+    const sel = $("courseSelect");
+    if(!COURSES.length){
+      sel.innerHTML = `<option value="">No courses yet — ask your manager</option>`;
+      $("courseHint").textContent = "";
+      MODULE_ID = null; return;
     }
+    sel.innerHTML = COURSES.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+    applyCourse(sel.value);
+    loadProgress();
+  }catch(e){
+    console.error(e);
+    $("courseSelect").innerHTML = `<option value="">Could not load courses</option>`;
+    toast("Failed to load courses: " + e.message, "error");
+  }finally{
+    $("pageLoader").classList.add("hide");
+  }
+}
+function applyCourse(courseId){
+  const course = COURSES.find(c => c.id === courseId);
+  if(!course){ MODULE_ID = null; return; }
+  MODULE_ID = course.kb_module_id || null;
+  if(MODULE_ID){
+    $("courseHint").innerHTML = `🟢 Ready · linked knowledge base loaded`;
+  }else{
+    $("courseHint").innerHTML = `⚠️ This course has no knowledge base linked. Ask your manager to link a module.`;
+  }
+}
+function onCourseChange(){ applyCourse($("courseSelect").value); loadProgress(); toast("Course switched"); }
+function needModule(){
+  if(!MODULE_ID){ toast("This course has no training material linked yet."); return false; }
+  return true;
+}
 
-    // Toast Notification
-    function showToast(message, isError = false) {
-      els.toast.className = isError ? 'toast-error show' : 'toast-success show';
-      els.toastMessage.textContent = message;
-      setTimeout(() => { els.toast.classList.remove('show'); }, 4000);
+// ── Sequential gating / progress ─────────────────────────────────────────────
+function repId(){ return ($("globalRepId").value || "rep-001").trim(); }
+function courseId(){ return $("courseSelect").value || ""; }
+
+async function loadProgress(){
+  const cid = courseId();
+  if(!cid){ return; }
+  try{
+    PROGRESS = await api(`/api/progress?sales_rep_id=${encodeURIComponent(repId())}&course_id=${encodeURIComponent(cid)}`);
+    applyGating();
+  }catch(e){ console.error(e); }
+}
+
+function applyGating(){
+  if(!PROGRESS) return;
+  const steps = PROGRESS.steps || {};
+  // Lock/unlock nav + show lock overlays per view
+  Object.entries(VIEW_TO_STEP).forEach(([view, step])=>{
+    const st = (steps[step] && steps[step].status) || "locked";
+    const btn = document.querySelector(`#nav button[data-view="${view}"]`);
+    const lock = $("lock-" + view);
+    const body = $("body-" + view);
+    if(btn){
+      btn.classList.toggle("locked", st === "locked");
+      btn.classList.toggle("done", st === "completed");
+      // lock icon
+      let ic = btn.querySelector(".lock-ic");
+      if(st === "locked"){ if(!ic){ ic=document.createElement("span"); ic.className="lock-ic"; ic.textContent="🔒"; btn.appendChild(ic);} }
+      else if(ic){ ic.remove(); }
     }
-
-    // API Helper
-    function api(path) {
-      const base = els.apiBase.value.trim().replace(/\/$/, '');
-      return base ? `${base}${path}` : path;
+    if(lock) lock.style.display = st === "locked" ? "block" : "none";
+    if(body) body.style.display = st === "locked" ? "none" : "block";
+    // mark complete-row done
+    const doneRow = $("done-" + step);
+    if(doneRow){
+      if(st === "completed"){ doneRow.classList.add("done"); doneRow.querySelector("button").textContent = "✓ Completed"; doneRow.querySelector("button").disabled = true; }
+      else { doneRow.classList.remove("done"); const b=doneRow.querySelector("button"); b.disabled=false; }
     }
+  });
+  renderApprovalBanner();
+}
 
-    async function request(path, options = {}) {
-      const response = await fetch(api(path), {
-        headers: { 'accept': 'application/json', ...(options.headers || {}) },
-        ...options,
-      });
-      const text = await response.text();
-      let data;
-      try { data = text ? JSON.parse(text) : {}; }
-      catch { data = { raw: text }; }
-      if (!response.ok) {
-        throw new Error(data.detail || data.message || `HTTP ${response.status}`);
-      }
-      return data;
+function renderApprovalBanner(){
+  const el = $("approval-banner"); if(!el) return;
+  const s = PROGRESS.approval_status;
+  if(s === "pending"){
+    el.style.display="block";
+    el.innerHTML = `<div class="banner" style="background:rgba(245,158,11,.15);color:var(--amber);border:1px solid var(--amber)">⏳ Submitted — waiting for admin approval</div>`;
+  }else if(s === "approved"){
+    el.style.display="block";
+    el.innerHTML = `<div class="banner hire">🎉 Approved by admin — you are certified for this course!</div>`;
+  }else if(s === "rejected"){
+    el.style.display="block";
+    el.innerHTML = `<div class="banner no">❌ Sent back by admin${PROGRESS.approval_note?(': '+esc(PROGRESS.approval_note)):''}. Please redo and resubmit.</div>`;
+  }else{
+    el.style.display="none";
+  }
+}
+
+async function completeStep(step){
+  const cid = courseId();
+  if(!cid){ toast("Select a course first", "error"); return; }
+
+  // Enforce minimum activity before allowing completion
+  if(step === "tier1" && activity.t1_msgs < 1){
+    toast("Send at least 1 chat message before completing Step 1", "error"); return;
+  }
+  if(step === "tier2" && !activity.t2_started){
+    toast("Start the Deep-Dive session before completing Step 2", "error"); return;
+  }
+  if(step === "tier3" && !activity.call_started){
+    toast("Start at least one mock call before completing Step 3", "error"); return;
+  }
+
+  try{
+    PROGRESS = await api("/api/progress/complete", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({sales_rep_id:repId(), course_id:cid, step})});
+    applyGating();
+    toast("Step complete — next step unlocked ✅", "success");
+  }catch(e){ toast(e.message, "error"); }
+}
+
+// ── Step 1: Curriculum + Tier 1 chat ─────────────────────────────────────────
+$("genCurriculum").onclick = async function(){
+  if(!needModule()) return;
+  busy(this, true, "Generating…");
+  try{
+    const r = await api("/api/learn/curriculum?module_id=" + encodeURIComponent(MODULE_ID));
+    const box = $("curriculumBox"); box.style.display="block"; box.innerHTML = md(r.curriculum);
+    markDone("learn");
+  }catch(e){ toast(e.message); }
+  busy(this, false);
+};
+
+function addBubble(logId, who, text, isMd){
+  const log = $(logId);
+  if(log.querySelector(".empty")) log.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "bubble " + (who==="me"?"me":"ai");
+  div.innerHTML = isMd ? md(text) : esc(text);
+  log.appendChild(div); log.scrollTop = log.scrollHeight;
+}
+
+async function sendChat(tier, inputId, logId, btn){
+  if(!needModule()) return;
+  const msg = $(inputId).value.trim(); if(!msg) return;
+  addBubble(logId, "me", msg); $(inputId).value="";
+  if(tier === 1) activity.t1_msgs++;
+  busy(btn, true, "Thinking…");
+  try{
+    const r = await api("/api/chat", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({message:msg, module_id:MODULE_ID, session_id:SID+"-t"+tier, tier})});
+    addBubble(logId, "ai", r.response, true);
+  }catch(e){ addBubble(logId, "ai", "⚠️ "+e.message); toast(e.message, "error"); }
+  busy(btn, false);
+}
+$("t1send").onclick = function(){ sendChat(1, "t1input", "t1log", this); };
+$("t1input").addEventListener("keydown", e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("t1send").click();} });
+
+// ── Step 2: Tier 2 deep dive ──────────────────────────────────────────────────
+$("startDeepDive").onclick = async function(){
+  if(!needModule()) return;
+  busy(this, true, "Preparing walkthrough…");
+  try{
+    const r = await api("/api/chat", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({message:"I'm ready — please start the full deep-dive walkthrough.",
+        module_id:MODULE_ID, session_id:SID+"-t2", tier:2})});
+    addBubble("t2log", "ai", r.response, true);
+    $("t2inputRow").style.display="flex"; $("t2send").style.display="inline-flex";
+    this.style.display="none";
+    activity.t2_started = true;
+    markDone("deepdive");
+  }catch(e){ toast(e.message, "error"); }
+  busy(this, false);
+};
+$("t2send").onclick = function(){ sendChat(2, "t2input", "t2log", this); };
+
+// ── Step 3: Voice calls ───────────────────────────────────────────────────────
+let lastCall = null;
+async function startCall(round){
+  if(!needModule()) return;
+  const btn = document.querySelector(`button[data-round="${round}"]`);
+  busy(btn, true, "Dispatching agent…");
+  try{
+    const r = await api("/api/mock-call/start", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({sales_rep_id: repId(), module_id:MODULE_ID, round})});
+    lastCall = r;
+    activity.call_started = true;
+    $("callInfo").style.display="block";
+    $("callDetails").innerHTML =
+      `<b>Round ${round}</b> — ${round===1?"Demo (listen)":"Practice (you sell, scored)"}<br>`+
+      `Room: <code>${esc(r.room_name)}</code><br>`+
+      `<span class="muted">${esc(r.frontend_message||"")}</span>`;
+    if(round===2) markDone("practice");
+    toast("Call ready — click Join", "success");
+  }catch(e){ toast(e.message, "error"); }
+  busy(btn, false);
+}
+$("joinCall").onclick = ()=>{ if(lastCall?.connection_link) window.open(lastCall.connection_link,"_blank"); else toast("Start a call first"); };
+
+// ── Step 4: Evaluation ────────────────────────────────────────────────────────
+
+// Auto-pull the most recent voice transcript for this rep
+async function pullTranscript(){
+  const btn = $("pullTranscript");
+  busy(btn, true, "Fetching…");
+  try{
+    const {sessions} = await api("/api/admin/sessions");
+    // Find the most recent session for this rep that has a transcript
+    const mine = sessions.filter(s => s.has_transcript && s.transcript_turns > 0);
+    if(!mine.length){ toast("No voice transcripts found. Complete a mock call first.", "error"); busy(btn,false); return; }
+    const latest = mine[0]; // sessions are newest-first from the API
+    const detail = await api(`/api/admin/sessions/${encodeURIComponent(latest.room_name)}/transcript`);
+    if(detail.transcript && detail.transcript.length){
+      const text = detail.transcript.map(t => `${t.role}: ${t.text}`).join("\n");
+      $("evalTranscript").value = text;
+      toast("Transcript loaded (" + detail.transcript.length + " turns)", "success");
+    }else{
+      toast("Transcript found but is empty", "error");
     }
+  }catch(e){ toast("Could not pull transcript: " + e.message, "error"); }
+  busy(btn, false);
+}
+$("pullTranscript").onclick = pullTranscript;
 
-    async function fetchConfig() {
-      try {
-        const config = await request('/api/config');
-        state.activeModuleId = config.active_module_id;
-        state.activeAgentId = config.active_agent_id;
-        state.timerMinutes = config.timer_minutes || 2;
-        
-        if (state.activeModuleId) {
-          els.activeModuleDisplay.textContent = `Active Module: ${state.activeModuleId.slice(0,8)}`;
-          els.activeModuleDisplay.style.display = 'block';
-        } else {
-          els.activeModuleDisplay.textContent = "No active module set by Admin.";
-          els.activeModuleDisplay.style.color = "var(--danger)";
-          els.activeModuleDisplay.style.display = 'block';
-        }
+$("runEval").onclick = async function(){
+  if(!needModule()) return;
+  const transcript = $("evalTranscript").value.trim();
+  if(!transcript){ toast("No transcript. Pull it or paste manually.", "error"); return; }
+  busy(this, true, "Scoring…");
+  try{
+    const r = await api("/api/mock-call/evaluate", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({voice_transcript:transcript, module_id:MODULE_ID, round:2, session_id:SID})});
+    renderEval(r); markDone("evaluate");
+    // Submit the evaluation step → goes to pending admin approval
+    try{
+      PROGRESS = await api("/api/progress/complete", {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({sales_rep_id:repId(), course_id:courseId(), step:"evaluation"})});
+      applyGating();
+    }catch(e){ console.error(e); }
+  }catch(e){ toast("Evaluation failed: " + e.message, "error"); }
+  busy(this, false);
+};
+function renderEval(r){
+  $("evalResults").style.display="block";
+  const hire = (r.hiring_decision||"").toLowerCase().includes("hire") && !(r.hiring_decision||"").toLowerCase().includes("not");
+  const banner = $("evalBanner");
+  banner.className = "banner " + (hire?"hire":"no");
+  banner.innerHTML = `${hire?"✅":"⏳"} ${esc(r.hiring_decision||"—")} &nbsp;·&nbsp; Final Score: ${r.final_score ?? r.voice_score}/10`;
 
-        // Display Active Agent
-        let agentDisplay = document.getElementById('activeAgentDisplay');
-        if (!agentDisplay) {
-          agentDisplay = document.createElement('p');
-          agentDisplay.id = 'activeAgentDisplay';
-          agentDisplay.style.textAlign = 'center';
-          agentDisplay.style.fontSize = '14px';
-          agentDisplay.style.fontWeight = '600';
-          agentDisplay.style.color = 'var(--accent)';
-          agentDisplay.style.marginBottom = '24px';
-          els.activeModuleDisplay.parentNode.insertBefore(agentDisplay, els.activeModuleDisplay.nextSibling);
-        }
+  const dims = [
+    ["Product Accuracy", r.product_accuracy], ["Discovery", r.discovery],
+    ["Objection Handling", r.objection_handling], ["Empathy / Communication", r.empathy],
+    ["Closing Clarity", r.closing_clarity],
+  ];
+  $("evalScores").innerHTML = dims.map(([l,v])=>`
+    <div class="score"><div class="n">${v ?? "—"}</div><div class="l">${l}</div>
+      <div class="bar"><span style="width:${((v||0)/10)*100}%"></span></div></div>`).join("");
 
-        if (state.activeAgentId) {
-           const agentsRes = await request('/api/agents');
-           const agent = agentsRes.agents?.find(a => a.id === state.activeAgentId);
-           agentDisplay.textContent = `Persona: ${agent ? agent.name : state.activeAgentId.slice(0,8)}`;
-        } else {
-           agentDisplay.textContent = `Persona: Default Prospect`;
-        }
+  let fb = "";
+  if(r.strengths) fb += `<div class="feedback"><h4>✅ Strengths</h4>${esc(r.strengths)}</div>`;
+  if(r.improvement_areas || r.voice_feedback) fb += `<div class="feedback"><h4>🔧 Improve</h4>${esc(r.improvement_areas||r.voice_feedback)}</div>`;
+  if(r.priority_focus) fb += `<div class="feedback"><h4>🎯 Focus Next Time</h4>${esc(r.priority_focus)}</div>`;
+  $("evalFeedback").innerHTML = fb || '<p class="muted">No detailed feedback returned.</p>';
+}
 
-        // Auto-start the timer if configured
-        if (!state.timerInterval && state.timerMinutes > 0 && state.activeModuleId) {
-           startAssessmentTimer();
-        }
-      } catch (err) {
-        showToast("Error loading config: " + err.message, true);
-      }
-    }
-
-    async function loadHistory() {
-      const path = '/api/mock-call/history';
-      const data = await request(path);
-      state.history = data.records || [];
-      
-      // Calculate Grand Final Average for the Rep
-      const repScores = {};
-      state.history.forEach(r => {
-        if (!repScores[r.module_id] || new Date(r.timestamp) > new Date(repScores[r.module_id].timestamp)) {
-          repScores[r.module_id] = r;
-        }
-      });
-      
-      const uniqueScores = Object.values(repScores);
-      if (uniqueScores.length > 0) {
-        const sum = uniqueScores.reduce((acc, curr) => acc + curr.final_score, 0);
-        const avg = (sum / uniqueScores.length).toFixed(1);
-        
-        const avgDisplay = document.getElementById('grandAverageDisplay') || document.createElement('div');
-        avgDisplay.id = 'grandAverageDisplay';
-        avgDisplay.innerHTML = `<h3 style="color:var(--accent); text-align:center; padding:16px; background:rgba(0,0,0,0.2); border-radius:12px;">Grand Final Average (Across All Modules Tested): ${avg}</h3>`;
-        els.historyList.parentNode.insertBefore(avgDisplay, els.historyList);
-      }
-      
-      renderHistory();
-    }
-
-    async function generateCurriculum() {
-      const btn = document.getElementById('generateCurriculumBtn');
-      const panel = document.getElementById('curriculumPanel');
-      const output = document.getElementById('curriculumOutput');
-
-      if (!state.activeModuleId) {
-        showToast('No active module configured by the admin.', true);
-        return;
-      }
-
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Reading Documents & Synthesizing...';
-
-      try {
-        const data = await request(`/api/learn/curriculum?module_id=${encodeURIComponent(state.activeModuleId)}`);
-        output.innerHTML = marked.parse(data.curriculum);
-        panel.style.display = 'block';
-        showToast('Curriculum generated successfully!');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Generate Curriculum from Documents';
-      }
-    }
-
-    async function sendChat() {
-      const msg = document.getElementById('chatMessage').value.trim();
-      const responseArea = document.getElementById('chatResponseArea');
-      const btn = document.getElementById('sendChat');
-      
-      if (!msg) {
-        showToast('Please enter a question.', true);
-        return;
-      }
-      if (!state.activeModuleId) {
-        showToast('No active module configured.', true);
-        return;
-      }
-
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Thinking...';
-      responseArea.textContent = 'Thinking...';
-
-      try {
-        const payload = {
-          message: msg,
-          module_id: state.activeModuleId,
-          sales_rep_id: els.salesRepId ? els.salesRepId.value : 'rep-001'
-        };
-        const data = await request('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        
-        // Use marked if available, otherwise raw text
-        if (typeof marked !== 'undefined') {
-          responseArea.innerHTML = marked.parse(data.response);
-        } else {
-          responseArea.textContent = data.response;
-        }
-
-        // Append to chat transcript
-        state.chatTranscript += `\nRep: ${msg}\nAssistant: ${data.response}\n`;
-        document.getElementById('chatMessage').value = '';
-      } catch (err) {
-        responseArea.textContent = 'Error: ' + err.message;
-        showToast(err.message, true);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Send Message';
-      }
-    }
-
-    async function startMockCall() {
-      const btn = document.getElementById('startMockCall');
-      const infoBox = document.getElementById('sessionInfo');
-      
-      if (!state.activeModuleId) {
-        showToast('No active module configured.', true);
-        return;
-      }
-
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Starting...';
-      infoBox.textContent = 'Dispatching voice agent...';
-
-      try {
-        const payload = {
-          sales_rep_id: els.salesRepId.value || 'rep-001',
-          module_id: state.activeModuleId
-        };
-        const data = await request('/api/mock-call/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        
-        state.session = data;
-        
-        let html = `<strong>Session Started Successfully!</strong><br><br>`;
-        html += `Room: ${data.room_name}<br>`;
-        html += `Agent: ${data.agent_name} (Dispatched: ${data.agent_dispatched})<br><br>`;
-        html += `<a href="${data.connection_link}" target="_blank" style="color:#60a5fa;">Click here to open LiveKit Playground and join the call</a>`;
-        
-        infoBox.innerHTML = html;
-        showToast('Mock call session created!');
-      } catch (err) {
-        infoBox.textContent = 'Error: ' + err.message;
-        showToast(err.message, true);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Start Voice Mock Call';
-      }
-    }
-
-    async function evaluateMock() {
-      const btn = document.getElementById('evaluateMock');
-      const mockTranscript = els.mockTranscript.value.trim();
-      
-      if (!state.activeModuleId) {
-        showToast('No active module configured.', true);
-        return;
-      }
-      
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Evaluating...';
-      els.scoreResults.style.display = 'none';
-
-      try {
-        const payload = {
-          session_id: state.session?.session_id || `manual-${Date.now()}`,
-          voice_transcript: mockTranscript || "No voice transcript provided.",
-          chat_transcript: state.chatTranscript || "No chat transcript provided.",
-          module_id: state.activeModuleId
-        };
-        
-        const data = await request('/api/mock-call/evaluate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        
-        // Render Scores
-        els.scoreGrid.innerHTML = '';
-        
-        // Final Score Card
-        const finalCard = document.createElement('div');
-        finalCard.className = 'score-card final';
-        finalCard.innerHTML = `<span>Final Score</span><strong>${data.final_score.toFixed(1)}</strong>`;
-        els.scoreGrid.appendChild(finalCard);
-        
-        // Individual Scores
-        const keys = ['voice_score', 'text_score', 'product_accuracy', 'discovery', 'objection_handling', 'empathy', 'closing_clarity'];
-        keys.forEach(k => {
-          if (data[k] !== undefined && data[k] !== null) {
-            const card = document.createElement('div');
-            card.className = 'score-card';
-            card.innerHTML = `<span>${scoreLabels[k] || k}</span><strong>${data[k].toFixed(1)}</strong>`;
-            els.scoreGrid.appendChild(card);
-          }
-        });
-        
-        // Hiring Banner
-        els.hiringBanner.textContent = `Decision: ${data.hiring_decision}`;
-        els.hiringBanner.className = `hiring-decision ${data.hiring_decision.toLowerCase() === 'hire' ? 'hire-yes' : 'hire-no'}`;
-        
-        // Feedback
-        els.feedbackText.innerHTML = `
-          <strong>Voice Feedback:</strong><br>${data.voice_feedback}<br><br>
-          <strong>Chat Feedback:</strong><br>${data.text_feedback || 'N/A'}
-        `;
-        
-        els.scoreResults.style.display = 'block';
-        showToast('Evaluation complete!');
-        
-        await loadHistory();
-      } catch (err) {
-        showToast('Evaluation failed: ' + err.message, true);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Generate Final Score & Hiring Decision';
-      }
-    }
-
-    function renderHistory() {
-      els.historyList.innerHTML = '';
-      if (!state.history || state.history.length === 0) {
-        els.historyList.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">No evaluations yet.</p>';
-        return;
-      }
-      
-      state.history.forEach(record => {
-        const item = document.createElement('div');
-        item.className = 'list-item';
-        item.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div>
-              <h3>Session ${record.session_id.slice(0, 8)}... <span class="badge" style="margin-left:8px;">${Number(record.final_score).toFixed(1)}/10</span></h3>
-              <p>Module: ${record.module_id.slice(0,8)}... | Decision: <strong>${record.hiring_decision}</strong></p>
-            </div>
-            <div style="text-align:right; font-size:12px; color:var(--text-muted);">
-              ${new Date(record.timestamp).toLocaleString()}
-            </div>
-          </div>
-        `;
-        els.historyList.appendChild(item);
-      });
-    }
-
-    // Stopwatch Logic
-    function formatTime(seconds) {
-      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-      const s = (seconds % 60).toString().padStart(2, '0');
-      return `${m}:${s}`;
-    }
-
-    function startAssessmentTimer() {
-      if (state.timerInterval) return; // already running
-
-      const mins = state.timerMinutes;
-      if (!mins || mins <= 0) return;
-
-      state.timeLeft = mins * 60;
-      els.stopwatchDisplay.textContent = formatTime(state.timeLeft);
-      els.stopwatchDisplay.style.display = 'block';
-      els.stopwatchDisplay.style.color = 'var(--accent)';
-
-      showToast(`Assessment started! You have ${mins} minutes.`);
-
-      state.timerInterval = setInterval(() => {
-        state.timeLeft--;
-        els.stopwatchDisplay.textContent = formatTime(state.timeLeft);
-
-        if (state.timeLeft <= 30) els.stopwatchDisplay.style.color = 'var(--danger)';
-
-        if (state.timeLeft <= 0) {
-          clearInterval(state.timerInterval);
-          state.timerInterval = null;
-          els.stopwatchDisplay.style.color = 'var(--accent)';
-
-          showToast('Time is up! Auto-evaluating...', true);
-
-          document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-          document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-          document.querySelector('[data-target="view-eval"]').classList.add('active');
-          document.getElementById('view-eval').classList.add('active');
-
-          els.chatTranscript.value = state.chatTranscript || "No chat interaction recorded.";
-
-          handleAction(evaluateMock);
-        }
-      }, 1000);
-    }
-
-    async function handleAction(actionFn) {
-      try { await actionFn(); }
-      catch (err) { showToast(err.message, true); }
-    }
-
-    async function bindEvents() {
-      document.getElementById('loadHistory').addEventListener('click', () => handleAction(loadHistory));
-      document.getElementById('sendChat').addEventListener('click', () => handleAction(sendChat));
-      document.getElementById('startMockCall').addEventListener('click', () => handleAction(startMockCall));
-      document.getElementById('openLiveKit').addEventListener('click', () => {
-        if (!state.session?.connection_link) showToast('Start a mock call first.', true);
-        else window.open(state.session.connection_link, '_blank', 'noopener,noreferrer');
-      });
-      document.getElementById('evaluateMock').addEventListener('click', () => handleAction(evaluateMock));
-      document.getElementById('refreshHistory').addEventListener('click', () => handleAction(loadHistory));
-      document.getElementById('generateCurriculumBtn').addEventListener('click', () => handleAction(generateCurriculum));
-    }
-
-    async function init() {
-      setupEventListeners();
-      await bindEvents();
-      try {
-        await fetchConfig();
-        await loadHistory();
-      } catch (error) {
-        showToast(error.message, true);
-      }
-    }
-
-    init();
-  </script>
+// ── Init ─────────────────────────────────────────────────────────────────────
+(async()=>{
+  try{ await api("/api/health"); $("health").innerHTML = "🟢 Connected"; }
+  catch{ $("health").innerHTML = "🔴 Offline — is the server running?"; }
+  loadCourses();
+})();
+</script>
 </body>
-
 </html>

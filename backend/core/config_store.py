@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from config import config
+from core.atomic_json import atomic_read, atomic_write
 
 class ConfigStore:
     def __init__(self):
@@ -17,8 +18,8 @@ class ConfigStore:
 
     def get_config(self) -> dict[str, Any]:
         try:
-            with self.file_path.open("r", encoding="utf-8") as f:
-                return json.load(f)
+            data = atomic_read(self.file_path)
+            return data if isinstance(data, dict) else {"active_module_id": None, "active_agent_id": None, "timer_minutes": 2, "agents": []}
         except Exception:
             return {"active_module_id": None, "active_agent_id": None, "timer_minutes": 2, "agents": []}
 
@@ -67,7 +68,6 @@ class ConfigStore:
         return None
 
     def _write(self, data: dict[str, Any]):
-        with self.file_path.open("w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        atomic_write(self.file_path, data)
 
 config_store = ConfigStore()
